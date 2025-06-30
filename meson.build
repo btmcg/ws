@@ -17,6 +17,12 @@ src_files = files(
 # Main executable source files
 main_files = src_files + files('src/main.cpp')
 
+# TCP Echo Server source files
+tcp_echo_server_files = files(
+  'src/tcp_echo_server/tcp_echo_server.cpp',
+  'src/tcp_echo_server/main.cpp'
+)
+
 # Find Catch2 dependency
 catch2_dep = dependency('catch2-with-main', required: false)
 if not catch2_dep.found()
@@ -34,6 +40,12 @@ endif
 # Define the main executable
 executable('ws',
   sources : main_files,
+  include_directories : inc_dir,
+  install : true)
+
+# Define the TCP echo server executable
+executable('tcp_echo_server',
+  sources : tcp_echo_server_files,
   include_directories : inc_dir,
   install : true)
 
