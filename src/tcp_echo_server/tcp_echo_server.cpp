@@ -59,8 +59,8 @@ tcp_echo_server::listen()
         std::println("{}", str);
 
         std::println("- - -");
-
         parse_request(str);
+        std::println("- - -");
     }
 
     return true;
@@ -79,7 +79,6 @@ tcp_echo_server::parse_request(std::string const& req)
     std::println("method={}", method);
     pos = newline_pos + 2;
 
-
     while (pos < req.size()) {
         std::size_t colon_pos = req.find(':', pos);
         std::size_t newline_pos = req.find("\r\n", colon_pos);
@@ -88,7 +87,7 @@ tcp_echo_server::parse_request(std::string const& req)
         }
 
         std::string header_key = req.substr(pos, colon_pos - pos);
-        std::string header_val = req.substr(colon_pos + 2, newline_pos - colon_pos - 2).data();
+        std::string header_val = req.substr(colon_pos + 2, newline_pos - colon_pos - 2);
 
         header_map.emplace(header_key, header_val);
 
