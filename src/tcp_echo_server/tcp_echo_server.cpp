@@ -1,5 +1,6 @@
 #include "tcp_echo_server.hpp"
 #include "../base64_codec.hpp"
+#include "../websocket_frame.hpp"
 #include "../sha1.hpp"
 #include "../str_utils.hpp"
 #include <arpa/inet.h>
