@@ -110,7 +110,6 @@ namespace ws {
 
         for (auto& [key, val] : header_map) {
             SPDLOG_DEBUG("key={}, val={}", key, val);
-            SPDLOG_INFO("key={}, val={}", key, val);
         }
     }
 
