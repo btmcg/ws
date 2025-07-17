@@ -25,6 +25,7 @@ tcp_echo_server::tcp_echo_server(int port)
         , port_(port)
         , header_fields_()
         , accept_key_()
+        , client_fd_(-1)
 {
     SPDLOG_DEBUG("tcp_echo_server instantiated");
     sock_ = ::socket(PF_INET, SOCK_STREAM, 0);
@@ -61,10 +62,10 @@ tcp_echo_server::listen()
     while (true) {
         sockaddr_storage their_addr;
         socklen_t addr_size = sizeof(their_addr);
-        int new_fd = ::accept(sock_, reinterpret_cast<sockaddr*>(&their_addr), &addr_size);
+        client_fd_ = ::accept(sock_, reinterpret_cast<sockaddr*>(&their_addr), &addr_size);
 
         std::array<char, 4096> buf{};
-        ssize_t const bytes_read = ::recv(new_fd, buf.data(), buf.size(), 0);
+        ssize_t const bytes_read = ::recv(client_fd_, buf.data(), buf.size(), 0);
         if (bytes_read == 0) {
             ::close(sock_);
             continue;
@@ -256,16 +257,12 @@ tcp_echo_server::send_response()
     response += "HTTP/1.1 101 Switching Protocols\r\n";
     response += "Upgrade: websocket\r\n";
     response += "Connection: Upgrade\r\n";
-    response += "Sec-WebSocket-Accept: " + accept_key_ + "\r\n";
-    // SPDLOG_DEBUG("response={}", response);
+    response += "Sec-WebSocket-Accept: " + accept_key_ + "\r\n\r\n";
+    SPDLOG_DEBUG("response=\n{}", response);
 
     SPDLOG_DEBUG("sending {} bytes", response.size());
-    ssize_t nbytes = ::send(sock_, response.c_str(), response.size(), 0);
-    std::print("nbytes={}", nbytes);
-    SPDLOG_INFO("nbytes={}", nbytes);
-    SPDLOG_DEBUG("nbytes={}", nbytes);
-    SPDLOG_CRITICAL("nbytes={}", nbytes);
-    if (nbytes != -1) {
+    ssize_t nbytes = ::send(client_fd_, response.c_str(), static_cast<ssize_t>(response.size()), 0);
+    if (nbytes == -1) {
         SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
         return false;
     }

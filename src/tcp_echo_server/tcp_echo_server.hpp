@@ -24,6 +24,7 @@ private:
     int port_ = -1;
     std::unordered_map<std::string, std::string> header_fields_;
     std::string accept_key_;
+    int client_fd_ = -1;
 };
 
 } // namespace ws
