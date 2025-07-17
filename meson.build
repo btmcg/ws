@@ -25,6 +25,7 @@ tcp_echo_server_files = files(
 
 
 # Find spdlog dependency
+add_global_arguments('-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE', language : 'cpp')
 spdlog_dep = dependency('spdlog', required: true)
 
 

@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>  // ::close
 #include <algorithm> // std::find_if
+#include <cstdlib>   // std::abort
 #include <cstring>
 #include <print>
 #include <unordered_map>
@@ -31,7 +32,8 @@ namespace ws {
                 .sin_zero = 0};
 
         if (::bind(sock_, reinterpret_cast<sockaddr const*>(&addr), sizeof(addr)) == -1) {
-            spdlog::critical("bind: {}: {}", std::strerror(errno), errno);
+            SPDLOG_CRITICAL("bind: {}: {}", std::strerror(errno), errno);
+            std::abort();
         }
     }
 
@@ -44,7 +46,7 @@ namespace ws {
     tcp_echo_server::listen()
     {
         if (int rv = ::listen(sock_, 5); rv == -1) {
-            spdlog::critical("listen: {}: {}", std::strerror(errno), errno);
+            SPDLOG_CRITICAL("listen: {}: {}", std::strerror(errno), errno);
             return false;
         }
 
@@ -64,11 +66,11 @@ namespace ws {
             }
 
             std::string str(buf.data(), static_cast<std::size_t>(bytes_read));
-            spdlog::debug("{}", str);
+            SPDLOG_DEBUG("{}", str);
 
-            spdlog::debug("- - -");
+            SPDLOG_DEBUG("- - -");
             parse_request(str);
-            spdlog::debug("- - -");
+            SPDLOG_DEBUG("- - -");
         }
 
         return true;
@@ -84,7 +86,7 @@ namespace ws {
         std::size_t pos = 0;
         std::size_t newline_pos = req.find("\r\n", pos);
         method = req.substr(pos, newline_pos - pos);
-        spdlog::debug("method={}", method);
+        SPDLOG_DEBUG("method={}", method);
         pos = newline_pos + 2;
 
         parse_method(method);
@@ -107,7 +109,8 @@ namespace ws {
         }
 
         for (auto& [key, val] : header_map) {
-            spdlog::debug("key={}, val={}", key, val);
+            SPDLOG_DEBUG("key={}, val={}", key, val);
+            SPDLOG_INFO("key={}, val={}", key, val);
         }
     }
 
@@ -120,12 +123,12 @@ namespace ws {
 
         std::vector<std::string> tokens = tokenize(str);
         if (tokens.size() != 3) {
-            spdlog::critical("invalid number of tokens");
+            SPDLOG_CRITICAL("Invalid number of tokens");
             return false;
         }
 
         if (tokens[0] != "GET") {
-            spdlog::critical("unsupported method: {}", tokens[0]);
+            SPDLOG_CRITICAL("unsupported method: {}", tokens[0]);
             return false;
         }
 
