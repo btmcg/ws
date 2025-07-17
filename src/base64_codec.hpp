@@ -36,21 +36,22 @@ public:
      * @param input The input string to encode
      * @return Base64 encoded string
      */
-    static constexpr std::string encode(std::string_view const input);
+    static std::string encode(std::string_view const input);
 
     /**
      * Decode a base64 string
      * @param input The base64 string to decode
      * @return Decoded string
      */
-    static constexpr std::string decode(std::string_view const input);
+    static std::string decode(std::string_view const input);
 
+    // TODO: is this needed?
     /**
      * Safely decode a base64 string with error handling
      * @param input The base64 string to decode
      * @return Optional decoded string (nullopt if invalid input)
      */
-    static constexpr std::optional<std::string> decode_safe(std::string_view const input);
+    static std::optional<std::string> decode_safe(std::string_view const input);
 
     /**
      * Optimized encoding for known input sizes at compile time
@@ -108,8 +109,8 @@ to_base64(std::array<char, N> const& input)
     return base64_codec::encode_fixed(input);
 }
 
-constexpr std::string to_base64(std::string_view const input);
-constexpr std::string from_base64(std::string_view const input);
-constexpr std::optional<std::string> from_base64_safe(std::string_view const input);
+std::string to_base64(std::string_view const input);
+std::string from_base64(std::string_view const input);
+std::optional<std::string> from_base64_safe(std::string_view const input);
 
 } // namespace ws

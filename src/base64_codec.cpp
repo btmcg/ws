@@ -2,7 +2,7 @@
 
 namespace ws {
 
-constexpr std::string
+std::string
 base64_codec::encode(std::string_view const input)
 {
     if (input.empty())
@@ -49,7 +49,7 @@ base64_codec::encode(std::string_view const input)
     return result;
 }
 
-constexpr std::string
+std::string
 base64_codec::decode(std::string_view const input)
 {
     if (input.empty())
@@ -97,7 +97,7 @@ base64_codec::decode(std::string_view const input)
     return result;
 }
 
-constexpr std::optional<std::string>
+std::optional<std::string>
 base64_codec::decode_safe(std::string_view const input)
 {
     if (input.empty())
@@ -150,19 +150,19 @@ base64_codec::decode_safe(std::string_view const input)
 }
 
 // Convenience functions
-constexpr std::string
+std::string
 to_base64(std::string_view const input)
 {
     return base64_codec::encode(input);
 }
 
-constexpr std::string
+std::string
 from_base64(std::string_view const input)
 {
     return base64_codec::decode(input);
 }
 
-constexpr std::optional<std::string>
+std::optional<std::string>
 from_base64_safe(std::string_view const input)
 {
     return base64_codec::decode_safe(input);
