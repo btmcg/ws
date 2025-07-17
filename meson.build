@@ -51,18 +51,19 @@ executable('ws',
   dependencies : [spdlog_dep],
   install : true)
 
-# Define the TCP echo server executable
-executable('tcp_echo_server',
-  sources : tcp_echo_server_files,
-  include_directories : inc_dir,
-  dependencies : [spdlog_dep],
-  install : true)
-
-# Optional: Create a library for easier testing
 ws_lib = static_library('ws_lib',
   sources : src_files,
   include_directories : inc_dir,
   dependencies : [spdlog_dep])
+
+# Define the TCP echo server executable
+executable('tcp_echo_server',
+  sources : tcp_echo_server_files,
+  include_directories : inc_dir,
+  link_with : ws_lib,
+  dependencies : [spdlog_dep],
+  install : true)
+
 
 # Tests configuration
 if catch2_dep.found()

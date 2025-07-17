@@ -39,24 +39,6 @@ TEST_CASE("SHA-1 basic usage", "[sha1]")
     }
 }
 
-TEST_CASE("SHA-1 convenience functions", "[sha1]")
-{
-    SECTION("sha1_hash function")
-    {
-        auto const digest1 = ws::sha1::hash("abc");
-        auto const digest2 = ws::sha1_hash("abc");
-        REQUIRE(digest1 == digest2);
-    }
-
-    SECTION("sha1_hash_hex function")
-    {
-        std::string const hex1 = ws::sha1::hash_hex("abc");
-        std::string const hex2 = ws::sha1_hash_hex("abc");
-        REQUIRE(hex1 == hex2);
-        REQUIRE(hex1 == "a9993e364706816aba3e25717850c26c9cd0d89d");
-    }
-}
-
 TEST_CASE("SHA-1 binary data", "[sha1]")
 {
     SECTION("binary hash function")

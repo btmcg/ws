@@ -40,8 +40,4 @@ private:
     static void process_chunk(std::array<std::uint32_t, 5>& hash, const std::uint8_t* chunk);
 };
 
-// Convenience functions
-sha1::digest_type sha1_hash(std::string_view input);
-std::string sha1_hash_hex(std::string_view input);
-
 } // namespace ws

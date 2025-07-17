@@ -146,17 +146,4 @@ sha1::hash_hex(std::string_view input)
     return oss.str();
 }
 
-// Convenience functions
-sha1::digest_type
-sha1_hash(std::string_view input)
-{
-    return sha1::hash(input);
-}
-
-std::string
-sha1_hash_hex(std::string_view input)
-{
-    return sha1::hash_hex(input);
-}
-
 } // namespace ws
