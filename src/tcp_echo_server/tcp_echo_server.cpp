@@ -1,4 +1,6 @@
 #include "tcp_echo_server.hpp"
+#include "../base64_codec.hpp"
+#include "../sha1.hpp"
 #include "../str_utils.hpp"
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -15,6 +17,8 @@
 #include <vector>
 
 namespace ws {
+
+static constexpr std::string_view GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 tcp_echo_server::tcp_echo_server(int port)
         : sock_(-1)
@@ -192,20 +196,6 @@ tcp_echo_server::validate_header_fields()
         }
     }
 
-    // Sec-Websocket-Key
-    {
-        constexpr char key[] = "sec-websocket-key";
-        if (!header_fields_.contains(key)) {
-            SPDLOG_CRITICAL("missing '{}' field", key);
-            return false;
-        }
-        auto const& val = header_fields_[key];
-        if (val.empty()) {
-            SPDLOG_CRITICAL("invalid '{}' value: [{}]", key, val);
-            return false;
-        }
-    }
-
     // Sec-Websocket-Version
     {
         constexpr char key[] = "sec-websocket-version";
@@ -218,6 +208,26 @@ tcp_echo_server::validate_header_fields()
             SPDLOG_CRITICAL("invalid '{}' value: [{}]", key, val);
             return false;
         }
+    }
+
+    // Sec-Websocket-Key
+    {
+        constexpr char key[] = "sec-websocket-key";
+        if (!header_fields_.contains(key)) {
+            SPDLOG_CRITICAL("missing '{}' field", key);
+            return false;
+        }
+        auto const& val = header_fields_[key];
+        if (val.empty()) {
+            SPDLOG_CRITICAL("invalid '{}' value: [{}]", key, val);
+            return false;
+        }
+
+        SPDLOG_INFO("key={}", val);
+        std::string const concat = val + std::string(GUID);
+        SPDLOG_INFO("concat={}", concat);
+        std::string const sha1_hash = sha1::hash_hex(concat);
+        SPDLOG_INFO("sha1_hash={}", sha1_hash);
     }
 
     return true;
