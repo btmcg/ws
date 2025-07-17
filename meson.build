@@ -67,7 +67,7 @@ ws_lib = static_library('ws_lib',
 if catch2_dep.found()
   # Test files for each class
   test_files = [
-    # 'tests/test_price_level.cpp', 
+    'tests/test_str_utils.cpp', 
     # 'tests/test_order_book.cpp',
     # 'tests/test_messages.cpp'
   ]

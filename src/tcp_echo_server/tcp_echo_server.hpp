@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 
 namespace ws {
 
@@ -12,12 +13,14 @@ public:
     bool listen();
 
 private:
-    void parse_request(std::string const&);
-    bool parse_request_method_uri_and_version(std::string const&);
+    bool parse_request(std::string const&);
+    bool validate_request_method_uri_and_version(std::string const&);
+    bool validate_header_fields();
 
 private:
     int sock_ = -1;
     int port_ = -1;
+    std::unordered_map<std::string, std::string> header_fields_;
 };
 
 } // namespace ws

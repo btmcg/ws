@@ -54,4 +54,22 @@ tokenize(std::string const& str)
     return tokens;
 }
 
+std::string
+to_upper(std::string const& str)
+{
+    std::string rv;
+    std::transform(
+            str.begin(), str.end(), rv.begin(), [](std::uint8_t c) { return std::toupper(c); });
+    return rv;
+}
+
+std::string
+to_lower(std::string const& str)
+{
+    std::string rv;
+    std::transform(
+            str.begin(), str.end(), rv.begin(), [](std::uint8_t c) { return std::tolower(c); });
+    return rv;
+}
+
 } // namespace ws

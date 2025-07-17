@@ -19,6 +19,7 @@ namespace ws {
 tcp_echo_server::tcp_echo_server(int port)
         : sock_(-1)
         , port_(port)
+        , header_fields_()
 {
     SPDLOG_DEBUG("tcp_echo_server instantiated");
     sock_ = ::socket(PF_INET, SOCK_STREAM, 0);
@@ -69,17 +70,19 @@ tcp_echo_server::listen()
         SPDLOG_DEBUG("{}", str);
 
         SPDLOG_DEBUG("- - -");
-        parse_request(str);
+        if (!parse_request(str)) {
+            SPDLOG_ERROR("parse_request failed");
+            return false;
+        }
         SPDLOG_DEBUG("- - -");
     }
 
     return true;
 }
 
-void
+bool
 tcp_echo_server::parse_request(std::string const& req)
 {
-    std::unordered_map<std::string, std::string> header_map;
     std::string method;
 
     // extract command
@@ -89,7 +92,10 @@ tcp_echo_server::parse_request(std::string const& req)
     SPDLOG_DEBUG("method={}", method);
     pos = newline_pos + 2;
 
-    parse_request_method_uri_and_version(method);
+    if (!validate_request_method_uri_and_version(method)) {
+        SPDLOG_ERROR("request method, uri, and version validation failed");
+        return false;
+    }
 
     while (pos < req.size()) {
         std::size_t colon_pos = req.find(':', pos);
@@ -103,26 +109,30 @@ tcp_echo_server::parse_request(std::string const& req)
 
         trim(header_key);
         trim(header_val);
-        header_map.emplace(header_key, header_val);
+        header_fields_.emplace(to_lower(header_key), header_val);
 
         pos = newline_pos + 2;
     }
 
-    for (auto& [key, val] : header_map) {
-        SPDLOG_DEBUG("key={}, val={}", key, val);
+    if (!validate_header_fields()) {
+        SPDLOG_ERROR("header fields validation failed");
+        return false;
     }
+
+    return true;
 }
 
 bool
-tcp_echo_server::parse_request_method_uri_and_version(std::string const& method_and_ver)
+tcp_echo_server::validate_request_method_uri_and_version(std::string const& method_and_ver)
 {
-    std::string str = method_and_ver;
-    std::transform(
-            str.begin(), str.end(), str.begin(), [](std::uint8_t c) { return std::toupper(c); });
+    // According to RFC 2616, section 5.1.1
+    // The Method token indicates the method to be performed on the resource identified by the
+    // Request-URI. The method is case-sensitive.
+    std::string str = to_upper(method_and_ver);
 
     std::vector<std::string> tokens = tokenize(str);
     if (tokens.size() != 3) {
-        SPDLOG_CRITICAL("Invalid number of tokens");
+        SPDLOG_CRITICAL("Invalid number of tokens: [{}]", str);
         return false;
     }
 
@@ -142,4 +152,89 @@ tcp_echo_server::parse_request_method_uri_and_version(std::string const& method_
 
     return true;
 }
+
+bool
+tcp_echo_server::validate_header_fields()
+{
+    // According to RFC 7230, section 3.2:
+    // Each header field consists of a case-insensitive field name
+    // followed by a colon (":"), optional leading whitespace, the field
+    // value, and optional trailing whitespace.
+    for (auto& [key, val] : header_fields_) {
+        SPDLOG_DEBUG("header_fields key={}, val={}", key, val);
+    }
+
+    // Upgrade
+    {
+        constexpr char key[] = "upgrade";
+        if (!header_fields_.contains(key)) {
+            SPDLOG_CRITICAL("missing '{}' field", key);
+            return false;
+        }
+        auto const& val = to_lower(header_fields_[key]);
+        if (val != "websocket") {
+            SPDLOG_CRITICAL("invalid '{}' value: [{}]", key, val);
+            return false;
+        }
+    }
+
+    // Connection
+    {
+        constexpr char key[] = "connection";
+        if (!header_fields_.contains(key)) {
+            SPDLOG_CRITICAL("missing '{}' field", key);
+            return false;
+        }
+        auto const& val = header_fields_[key];
+        if (!val.contains("Upgrade")) {
+            SPDLOG_CRITICAL("invalid '{}' value: [{}]", key, val);
+            return false;
+        }
+    }
+
+    // Sec-Websocket-Key
+    {
+        constexpr char key[] = "sec-websocket-key";
+        if (!header_fields_.contains(key)) {
+            SPDLOG_CRITICAL("missing '{}' field", key);
+            return false;
+        }
+        auto const& val = header_fields_[key];
+        if (val.empty()) {
+            SPDLOG_CRITICAL("invalid '{}' value: [{}]", key, val);
+            return false;
+        }
+    }
+
+    // Sec-Websocket-Protocol
+    {
+        constexpr char key[] = "sec-websocket-protocol";
+        if (!header_fields_.contains(key)) {
+            SPDLOG_CRITICAL("missing '{}' field", key);
+            return false;
+        }
+        auto const& val = header_fields_[key];
+        if (val.empty()) {
+            SPDLOG_CRITICAL("invalid '{}' value: [{}]", key, val);
+            return false;
+        }
+    }
+
+    // Sec-Websocket-Version
+    {
+        constexpr char key[] = "sec-websocket-version";
+        if (!header_fields_.contains(key)) {
+            SPDLOG_CRITICAL("missing '{}' field", key);
+            return false;
+        }
+        auto const& val = header_fields_[key];
+        if (val.empty()) {
+            SPDLOG_CRITICAL("invalid '{}' value: [{}]", key, val);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 } // namespace ws
