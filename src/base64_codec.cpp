@@ -2,11 +2,31 @@
 
 namespace ws {
 
+// convenience functions
+std::string
+to_base64(std::string_view const input)
+{
+    return base64_codec::encode(input);
+}
+
+std::string
+from_base64(std::string_view const input)
+{
+    return base64_codec::decode(input);
+}
+
+std::optional<std::string>
+from_base64_safe(std::string_view const input)
+{
+    return base64_codec::decode_safe(input);
+}
+
 std::string
 base64_codec::encode(std::string_view const input)
 {
-    if (input.empty())
+    if (input.empty()) {
         return {};
+    }
 
     std::size_t const input_len = input.size();
     std::size_t const output_len = ((input_len + 2) / 3) * 4;
@@ -17,7 +37,7 @@ base64_codec::encode(std::string_view const input)
     unsigned char const* data = reinterpret_cast<unsigned char const*>(input.data());
     std::size_t i = 0;
 
-    // Process 3-byte chunks
+    // process 3-byte chunks
     for (; i + 2 < input_len; i += 3) {
         std::uint32_t const chunk = (static_cast<std::uint32_t>(data[i]) << 16)
                 | (static_cast<std::uint32_t>(data[i + 1]) << 8)
@@ -29,7 +49,7 @@ base64_codec::encode(std::string_view const input)
         result += encode_table[chunk & 0x3F];
     }
 
-    // Handle remaining bytes
+    // handle remaining bytes
     if (i < input_len) {
         std::uint32_t chunk = static_cast<std::uint32_t>(data[i]) << 16;
 
@@ -52,10 +72,11 @@ base64_codec::encode(std::string_view const input)
 std::string
 base64_codec::decode(std::string_view const input)
 {
-    if (input.empty())
+    if (input.empty()) {
         return {};
+    }
 
-    // Remove padding for size calculation
+    // remove padding for size calculation
     std::size_t input_len = input.size();
     std::size_t padding = 0;
 
@@ -77,11 +98,11 @@ base64_codec::decode(std::string_view const input)
 
     for (char const c : input) {
         if (c == '=')
-            break; // Stop at padding
+            break; // stop at padding
 
         std::int8_t const value = decode_table[static_cast<unsigned char>(c)];
         if (value == -1) {
-            // Invalid character - skip it
+            // invalid character - skip it
             continue;
         }
 
@@ -100,15 +121,16 @@ base64_codec::decode(std::string_view const input)
 std::optional<std::string>
 base64_codec::decode_safe(std::string_view const input)
 {
-    if (input.empty())
+    if (input.empty()) {
         return std::string{};
+    }
 
-    // Check if input length is valid (must be multiple of 4)
+    // check if input length is valid (must be multiple of 4)
     if (input.size() % 4 != 0) {
         return std::nullopt;
     }
 
-    // Remove padding for size calculation
+    // remove padding for size calculation
     std::size_t input_len = input.size();
     std::size_t padding = 0;
 
@@ -129,12 +151,13 @@ base64_codec::decode_safe(std::string_view const input)
     int chunk_bits = 0;
 
     for (char const c : input) {
-        if (c == '=')
-            break; // Stop at padding
+        if (c == '=') {
+            break; // stop at padding
+        }
 
         std::int8_t const value = decode_table[static_cast<unsigned char>(c)];
         if (value == -1) {
-            return std::nullopt; // Invalid character
+            return std::nullopt; // invalid character
         }
 
         chunk = (chunk << 6) | value;
@@ -148,25 +171,5 @@ base64_codec::decode_safe(std::string_view const input)
 
     return result;
 }
-
-// Convenience functions
-std::string
-to_base64(std::string_view const input)
-{
-    return base64_codec::encode(input);
-}
-
-std::string
-from_base64(std::string_view const input)
-{
-    return base64_codec::decode(input);
-}
-
-std::optional<std::string>
-from_base64_safe(std::string_view const input)
-{
-    return base64_codec::decode_safe(input);
-}
-
 
 } // namespace ws
