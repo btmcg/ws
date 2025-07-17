@@ -89,7 +89,7 @@ tcp_echo_server::parse_request(std::string const& req)
     SPDLOG_DEBUG("method={}", method);
     pos = newline_pos + 2;
 
-    parse_protocol_params(method);
+    parse_request_method_uri_and_version(method);
 
     while (pos < req.size()) {
         std::size_t colon_pos = req.find(':', pos);
@@ -114,7 +114,7 @@ tcp_echo_server::parse_request(std::string const& req)
 }
 
 bool
-tcp_echo_server::parse_protocol_params(std::string const& method_and_ver)
+tcp_echo_server::parse_request_method_uri_and_version(std::string const& method_and_ver)
 {
     std::string str = method_and_ver;
     std::transform(
