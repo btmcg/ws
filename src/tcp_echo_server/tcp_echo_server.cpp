@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <spdlog/spdlog.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>  // ::close
@@ -18,10 +19,10 @@ namespace ws {
             : sock_(-1)
             , port_(port)
     {
-        std::println("tcp_echo_server instantiated");
+        SPDLOG_DEBUG("tcp_echo_server instantiated");
         sock_ = ::socket(PF_INET, SOCK_STREAM, 0);
         if (sock_ == -1) {
-            std::println("socket: {}: {}", std::strerror(errno), errno);
+            SPDLOG_CRITICAL("socket: {}: {}", std::strerror(errno), errno);
         }
 
         sockaddr_in addr{.sin_family = AF_INET,
@@ -30,7 +31,7 @@ namespace ws {
                 .sin_zero = 0};
 
         if (::bind(sock_, reinterpret_cast<sockaddr const*>(&addr), sizeof(addr)) == -1) {
-            std::println("bind: {}: {}", std::strerror(errno), errno);
+            spdlog::critical("bind: {}: {}", std::strerror(errno), errno);
         }
     }
 
@@ -43,10 +44,11 @@ namespace ws {
     tcp_echo_server::listen()
     {
         if (int rv = ::listen(sock_, 5); rv == -1) {
-            std::println("listen: {}: {}", std::strerror(errno), errno);
+            spdlog::critical("listen: {}: {}", std::strerror(errno), errno);
+            return false;
         }
 
-        std::println("tcp_echo_server listening on port {}...", port_);
+        SPDLOG_INFO("tcp_echo_server listening on port {}...", port_);
 
 
         while (true) {
@@ -62,11 +64,11 @@ namespace ws {
             }
 
             std::string str(buf.data(), static_cast<std::size_t>(bytes_read));
-            std::println("{}", str);
+            spdlog::debug("{}", str);
 
-            std::println("- - -");
+            spdlog::debug("- - -");
             parse_request(str);
-            std::println("- - -");
+            spdlog::debug("- - -");
         }
 
         return true;
@@ -82,7 +84,7 @@ namespace ws {
         std::size_t pos = 0;
         std::size_t newline_pos = req.find("\r\n", pos);
         method = req.substr(pos, newline_pos - pos);
-        std::println("method={}", method);
+        spdlog::debug("method={}", method);
         pos = newline_pos + 2;
 
         parse_method(method);
@@ -105,7 +107,7 @@ namespace ws {
         }
 
         for (auto& [key, val] : header_map) {
-            std::println("key={}, val={}", key, val);
+            spdlog::debug("key={}, val={}", key, val);
         }
     }
 
@@ -118,12 +120,12 @@ namespace ws {
 
         std::vector<std::string> tokens = tokenize(str);
         if (tokens.size() != 3) {
-            std::println(stderr, "invalid number of tokens");
+            spdlog::critical("invalid number of tokens");
             return false;
         }
 
         if (tokens[0] != "GET") {
-            std::println(stderr, "unsupported method: {}", tokens[0]);
+            spdlog::critical("unsupported method: {}", tokens[0]);
             return false;
         }
 

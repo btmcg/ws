@@ -23,6 +23,11 @@ tcp_echo_server_files = files(
   'src/tcp_echo_server/main.cpp'
 )
 
+
+# Find spdlog dependency
+spdlog_dep = dependency('spdlog', required: true)
+
+
 # Find Catch2 dependency
 catch2_dep = dependency('catch2-with-main', required: false)
 if not catch2_dep.found()
@@ -41,18 +46,21 @@ endif
 executable('ws',
   sources : main_files,
   include_directories : inc_dir,
+  dependencies : [spdlog_dep],
   install : true)
 
 # Define the TCP echo server executable
 executable('tcp_echo_server',
   sources : tcp_echo_server_files,
   include_directories : inc_dir,
+  dependencies : [spdlog_dep],
   install : true)
 
 # Optional: Create a library for easier testing
-itch_parser_lib = static_library('ws_lib',
+ws_lib = static_library('ws_lib',
   sources : src_files,
-  include_directories : inc_dir)
+  include_directories : inc_dir,
+  dependencies : [spdlog_dep])
 
 # Tests configuration
 if catch2_dep.found()
@@ -70,8 +78,8 @@ if catch2_dep.found()
     test_exe = executable(test_name,
       sources : [test_file],
       include_directories : inc_dir,
-      link_with : itch_parser_lib,
-      dependencies : catch2_dep,
+      link_with : ws_lib,
+      dependencies : [catch2_dep, spdlog_dep],
       build_by_default : false)
 
     test(test_name, test_exe)
@@ -81,8 +89,8 @@ if catch2_dep.found()
   all_test_exe = executable('all_tests',
     sources : test_files,
     include_directories : inc_dir, 
-    link_with : itch_parser_lib,
-    dependencies : catch2_dep,
+    link_with : ws_lib,
+    dependencies : [catch2_dep, spdlog_dep],
     build_by_default : false)
 
   test('all_tests', all_test_exe)
