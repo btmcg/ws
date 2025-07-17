@@ -6,12 +6,12 @@ main(int argc, char* argv[])
 {
     std::println("tcp echo server");
 
-
     int port = 8080;
     if (argc == 2) {
         port = std::atoi(argv[1]);
     }
-    tcp_echo_server tes(port);
+
+    ws::tcp_echo_server tes(port);
     if (!tes.listen()) {
         std::println("exiting");
     }
