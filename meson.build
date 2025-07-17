@@ -11,7 +11,8 @@ inc_dir = include_directories('src')
 
 # Find all C++ source files in src directory
 src_files = files(
-  'src/base64_codec.cpp'
+  'src/base64_codec.cpp',
+  'src/sha1.cpp',
 )
 
 # Main executable source files
@@ -69,6 +70,7 @@ if catch2_dep.found()
   test_files = [
     'tests/test_str_utils.cpp', 
     'tests/test_base64_codec.cpp',
+    'tests/test_sha1.cpp',
   ]
 
   # Create test executables for each test file
