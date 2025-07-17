@@ -16,11 +16,14 @@ private:
     bool parse_request(std::string const&);
     bool validate_request_method_uri_and_version(std::string const&);
     bool validate_header_fields();
+    std::string generate_accept_key(std::string const&);
+    bool send_response();
 
 private:
     int sock_ = -1;
     int port_ = -1;
     std::unordered_map<std::string, std::string> header_fields_;
+    std::string accept_key_;
 };
 
 } // namespace ws

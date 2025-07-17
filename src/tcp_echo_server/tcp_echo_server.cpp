@@ -24,6 +24,7 @@ tcp_echo_server::tcp_echo_server(int port)
         : sock_(-1)
         , port_(port)
         , header_fields_()
+        , accept_key_()
 {
     SPDLOG_DEBUG("tcp_echo_server instantiated");
     sock_ = ::socket(PF_INET, SOCK_STREAM, 0);
@@ -57,7 +58,6 @@ tcp_echo_server::listen()
 
     SPDLOG_INFO("tcp_echo_server listening on port {}...", port_);
 
-
     while (true) {
         sockaddr_storage their_addr;
         socklen_t addr_size = sizeof(their_addr);
@@ -79,6 +79,13 @@ tcp_echo_server::listen()
             return false;
         }
         SPDLOG_DEBUG("- - -");
+
+        if (!send_response()) {
+            SPDLOG_ERROR("failed to send response");
+            return false;
+        } else {
+            SPDLOG_INFO("response sent");
+        }
     }
 
     return true;
@@ -223,11 +230,44 @@ tcp_echo_server::validate_header_fields()
             return false;
         }
 
-        SPDLOG_INFO("key={}", val);
-        std::string const concat = val + std::string(GUID);
-        SPDLOG_INFO("concat={}", concat);
-        std::string const sha1_hash = sha1::hash_hex(concat);
-        SPDLOG_INFO("sha1_hash={}", sha1_hash);
+        accept_key_ = generate_accept_key(val);
+    }
+
+    return true;
+}
+
+std::string
+tcp_echo_server::generate_accept_key(std::string const& key)
+{
+    SPDLOG_INFO("key={}", key);
+    std::string const concat = key + std::string(GUID);
+    SPDLOG_INFO("concat={}", concat);
+    std::string const sha1_hash = sha1::hash_hex(concat);
+    SPDLOG_INFO("sha1_hash={}", sha1_hash);
+    std::string b64_hash = to_base64(sha1_hash);
+    SPDLOG_INFO("b64_hash={}", b64_hash);
+    return b64_hash;
+}
+
+bool
+tcp_echo_server::send_response()
+{
+    std::string response;
+    response += "HTTP/1.1 101 Switching Protocols\r\n";
+    response += "Upgrade: websocket\r\n";
+    response += "Connection: Upgrade\r\n";
+    response += "Sec-WebSocket-Accept: " + accept_key_ + "\r\n";
+    // SPDLOG_DEBUG("response={}", response);
+
+    SPDLOG_DEBUG("sending {} bytes", response.size());
+    ssize_t nbytes = ::send(sock_, response.c_str(), response.size(), 0);
+    std::print("nbytes={}", nbytes);
+    SPDLOG_INFO("nbytes={}", nbytes);
+    SPDLOG_DEBUG("nbytes={}", nbytes);
+    SPDLOG_CRITICAL("nbytes={}", nbytes);
+    if (nbytes != -1) {
+        SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
+        return false;
     }
 
     return true;
