@@ -243,9 +243,15 @@ tcp_echo_server::generate_accept_key(std::string const& key)
     SPDLOG_INFO("key={}", key);
     std::string const concat = key + std::string(GUID);
     SPDLOG_INFO("concat={}", concat);
-    std::string const sha1_hash = sha1::hash_hex(concat);
-    SPDLOG_INFO("sha1_hash={}", sha1_hash);
-    std::string b64_hash = to_base64(sha1_hash);
+
+    // Get the raw SHA-1 hash bytes (not hex string!)
+    auto const sha1_digest = sha1::hash(concat);
+    SPDLOG_INFO("sha1_digest raw bytes computed");
+
+    // Base64-encode the raw bytes directly
+    std::string_view raw_bytes(
+            reinterpret_cast<const char*>(sha1_digest.data()), sha1_digest.size());
+    std::string b64_hash = to_base64(raw_bytes);
     SPDLOG_INFO("b64_hash={}", b64_hash);
     return b64_hash;
 }
