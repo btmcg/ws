@@ -11,7 +11,7 @@ inc_dir = include_directories('src')
 
 # Find all C++ source files in src directory
 src_files = files(
-  'src/base64.cpp'
+  'src/base64_codec.cpp'
 )
 
 # Main executable source files
