@@ -6,6 +6,7 @@
 #include <vector>
 
 namespace ws {
+
 void
 ltrim(std::string& s)
 {
