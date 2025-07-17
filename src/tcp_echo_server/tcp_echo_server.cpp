@@ -89,7 +89,7 @@ tcp_echo_server::parse_request(std::string const& req)
     SPDLOG_DEBUG("method={}", method);
     pos = newline_pos + 2;
 
-    parse_method(method);
+    parse_protocol_params(method);
 
     while (pos < req.size()) {
         std::size_t colon_pos = req.find(':', pos);
@@ -114,9 +114,9 @@ tcp_echo_server::parse_request(std::string const& req)
 }
 
 bool
-tcp_echo_server::parse_method(std::string const& method)
+tcp_echo_server::parse_protocol_params(std::string const& method_and_ver)
 {
-    std::string str = method;
+    std::string str = method_and_ver;
     std::transform(
             str.begin(), str.end(), str.begin(), [](std::uint8_t c) { return std::toupper(c); });
 
@@ -126,11 +126,19 @@ tcp_echo_server::parse_method(std::string const& method)
         return false;
     }
 
-    if (tokens[0] != "GET") {
+    std::string method = tokens[0];
+    std::string uri = tokens[1];
+    std::string version = tokens[2];
+
+    if (method != "GET") {
         SPDLOG_CRITICAL("unsupported method: {}", tokens[0]);
         return false;
     }
 
+    if (version != "HTTP/1.1") {
+        SPDLOG_CRITICAL("unsupported version: {}", tokens[2]);
+        return false;
+    }
 
     return true;
 }

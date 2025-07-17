@@ -13,7 +13,7 @@ public:
 
 private:
     void parse_request(std::string const&);
-    bool parse_method(std::string const&);
+    bool parse_protocol_params(std::string const&);
 
 private:
     int sock_ = -1;
