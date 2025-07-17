@@ -11,7 +11,7 @@ inc_dir = include_directories('src')
 
 # Find all C++ source files in src directory
 src_files = files(
-  #'src/price_level.cpp',
+  'src/base64.cpp'
 )
 
 # Main executable source files
@@ -20,7 +20,7 @@ main_files = src_files + files('src/main.cpp')
 # TCP Echo Server source files
 tcp_echo_server_files = files(
   'src/tcp_echo_server/tcp_echo_server.cpp',
-  'src/tcp_echo_server/main.cpp'
+  'src/tcp_echo_server/main.cpp',
 )
 
 
@@ -68,8 +68,7 @@ if catch2_dep.found()
   # Test files for each class
   test_files = [
     'tests/test_str_utils.cpp', 
-    # 'tests/test_order_book.cpp',
-    # 'tests/test_messages.cpp'
+    'tests/test_base64.cpp',
   ]
 
   # Create test executables for each test file

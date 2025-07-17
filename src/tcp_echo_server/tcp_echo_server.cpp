@@ -206,20 +206,6 @@ tcp_echo_server::validate_header_fields()
         }
     }
 
-    // Sec-Websocket-Protocol
-    {
-        constexpr char key[] = "sec-websocket-protocol";
-        if (!header_fields_.contains(key)) {
-            SPDLOG_CRITICAL("missing '{}' field", key);
-            return false;
-        }
-        auto const& val = header_fields_[key];
-        if (val.empty()) {
-            SPDLOG_CRITICAL("invalid '{}' value: [{}]", key, val);
-            return false;
-        }
-    }
-
     // Sec-Websocket-Version
     {
         constexpr char key[] = "sec-websocket-version";

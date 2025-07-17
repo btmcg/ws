@@ -1,7 +1,5 @@
 #include "str_utils.hpp"
 #include <catch2/catch_test_macros.hpp>
-#include <cstdint>
-#include <cstring> // std::memcmp, std::memcpy
 
 
 TEST_CASE("basic usage", "[str_utils]")
@@ -24,4 +22,3 @@ TEST_CASE("basic usage", "[str_utils]")
         REQUIRE(to_lower("AbC") == "abc");
     }
 }
-
