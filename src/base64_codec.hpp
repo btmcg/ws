@@ -8,13 +8,6 @@
 
 namespace ws {
 
-// Convenience functions
-std::string to_base64(std::string_view const input);
-std::string from_base64(std::string_view const input);
-std::optional<std::string> from_base64_safe(std::string_view const input);
-
-
-/// \class  base64_codec
 class base64_codec
 {
 private:
@@ -40,36 +33,35 @@ private:
 public:
     /**
      * Encode a string to base64
-     * @param input the input string to encode
-     * @return base64 encoded string
+     * @param input The input string to encode
+     * @return Base64 encoded string
      */
-    static std::string encode(std::string_view const input);
+    static constexpr std::string encode(std::string_view const input);
 
     /**
      * Decode a base64 string
-     * @param input the base64 string to decode
-     * @return decoded string
+     * @param input The base64 string to decode
+     * @return Decoded string
      */
-    static std::string decode(std::string_view const input);
+    static constexpr std::string decode(std::string_view const input);
 
-    // TODO: is this needed?
     /**
      * Safely decode a base64 string with error handling
-     * @param input the base64 string to decode
-     * @return optional decoded string (nullopt if invalid input)
+     * @param input The base64 string to decode
+     * @return Optional decoded string (nullopt if invalid input)
      */
-    static std::optional<std::string> decode_safe(std::string_view const input);
+    static constexpr std::optional<std::string> decode_safe(std::string_view const input);
 
     /**
      * Optimized encoding for known input sizes at compile time
-     * @param input fixed-size array input
-     * @return base64 encoded string
+     * @param input Fixed-size array input
+     * @return Base64 encoded string
      */
     template <std::size_t N>
     static constexpr std::string encode_fixed(std::array<char, N> const& input);
 };
 
-// template implementation
+// Template implementation (must be in header)
 template <std::size_t N>
 constexpr std::string
 base64_codec::encode_fixed(std::array<char, N> const& input)
@@ -107,5 +99,17 @@ base64_codec::encode_fixed(std::array<char, N> const& input)
 
     return result;
 }
+
+// Convenience functions
+template <std::size_t N>
+constexpr std::string
+to_base64(std::array<char, N> const& input)
+{
+    return base64_codec::encode_fixed(input);
+}
+
+constexpr std::string to_base64(std::string_view const input);
+constexpr std::string from_base64(std::string_view const input);
+constexpr std::optional<std::string> from_base64_safe(std::string_view const input);
 
 } // namespace ws

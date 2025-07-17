@@ -11,6 +11,8 @@ TEST_CASE("basic usage", "[base64_codec]")
         REQUIRE(to_base64("abc") == "YWJj");
         REQUIRE(to_base64("ABC") == "QUJD");
         REQUIRE(to_base64("hello, world") == "aGVsbG8sIHdvcmxk");
+
+        // static_assert(to_base64("abc") == "YWJj");
     }
 
     SECTION("from_base64")

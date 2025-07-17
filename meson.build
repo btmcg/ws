@@ -68,7 +68,7 @@ if catch2_dep.found()
   # Test files for each class
   test_files = [
     'tests/test_str_utils.cpp', 
-    'tests/test_base64.cpp',
+    'tests/test_base64_codec.cpp',
   ]
 
   # Create test executables for each test file

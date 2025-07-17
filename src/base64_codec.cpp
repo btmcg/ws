@@ -2,31 +2,11 @@
 
 namespace ws {
 
-// convenience functions
-std::string
-to_base64(std::string_view const input)
-{
-    return base64_codec::encode(input);
-}
-
-std::string
-from_base64(std::string_view const input)
-{
-    return base64_codec::decode(input);
-}
-
-std::optional<std::string>
-from_base64_safe(std::string_view const input)
-{
-    return base64_codec::decode_safe(input);
-}
-
-std::string
+constexpr std::string
 base64_codec::encode(std::string_view const input)
 {
-    if (input.empty()) {
+    if (input.empty())
         return {};
-    }
 
     std::size_t const input_len = input.size();
     std::size_t const output_len = ((input_len + 2) / 3) * 4;
@@ -69,12 +49,11 @@ base64_codec::encode(std::string_view const input)
     return result;
 }
 
-std::string
+constexpr std::string
 base64_codec::decode(std::string_view const input)
 {
-    if (input.empty()) {
+    if (input.empty())
         return {};
-    }
 
     // remove padding for size calculation
     std::size_t input_len = input.size();
@@ -118,12 +97,11 @@ base64_codec::decode(std::string_view const input)
     return result;
 }
 
-std::optional<std::string>
+constexpr std::optional<std::string>
 base64_codec::decode_safe(std::string_view const input)
 {
-    if (input.empty()) {
+    if (input.empty())
         return std::string{};
-    }
 
     // check if input length is valid (must be multiple of 4)
     if (input.size() % 4 != 0) {
@@ -151,9 +129,8 @@ base64_codec::decode_safe(std::string_view const input)
     int chunk_bits = 0;
 
     for (char const c : input) {
-        if (c == '=') {
+        if (c == '=')
             break; // stop at padding
-        }
 
         std::int8_t const value = decode_table[static_cast<unsigned char>(c)];
         if (value == -1) {
@@ -170,6 +147,25 @@ base64_codec::decode_safe(std::string_view const input)
     }
 
     return result;
+}
+
+// Convenience functions
+constexpr std::string
+to_base64(std::string_view const input)
+{
+    return base64_codec::encode(input);
+}
+
+constexpr std::string
+from_base64(std::string_view const input)
+{
+    return base64_codec::decode(input);
+}
+
+constexpr std::optional<std::string>
+from_base64_safe(std::string_view const input)
+{
+    return base64_codec::decode_safe(input);
 }
 
 } // namespace ws
