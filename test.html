@@ -7,20 +7,28 @@
     body { font-family: monospace; margin: 2em; }
     #log { border: 1px solid #ccc; padding: 1em; height: 200px; overflow-y: auto; background: #f9f9f9; }
     input, button { font-size: 1em; margin-top: 1em; }
+    .input-group { display: flex; align-items: center; gap: 10px; margin-top: 1em; }
+    .input-group input { flex: 1; }
   </style>
 </head>
 <body>
 
   <h2>WebSocket Client</h2>
-  <label for="url">WebSocket URL:</label>
-  <input id="url" value="ws://localhost:9000" size="40">
-  <button onclick="connect()">Connect</button>
+
+  <div class="input-group">
+    <label for="url">WebSocket URL:</label>
+    <input id="url" value="ws://localhost:8080" size="40">
+    <button onclick="connect()">Connect</button>
+  </div>
+
   <div id="status">Not connected</div>
 
   <div id="log"></div>
 
-  <input id="msg" placeholder="Enter message">
-  <button onclick="send()">Send</button>
+  <div class="input-group">
+    <input id="msg" placeholder="Enter message">
+    <button onclick="send()">Send</button>
+  </div>
 
   <script>
     let socket;
@@ -59,12 +67,31 @@
       if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(message);
         log("➡️  " + message);
+        document.getElementById("msg").value = ""; // Clear input after sending
       } else {
         log("⚠️ Not connected");
       }
     }
+
+    // Add Enter key support for URL input
+    document.getElementById("url").addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        connect();
+      }
+    });
+
+    // Add Enter key support for message input
+    document.getElementById("msg").addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        send();
+      }
+    });
+
+    // Focus on URL input when page loads
+    window.addEventListener("load", function() {
+      document.getElementById("url").focus();
+    });
   </script>
 
 </body>
 </html>
-
