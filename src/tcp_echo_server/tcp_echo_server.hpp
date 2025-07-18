@@ -2,6 +2,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <netinet/in.h>
 
 namespace ws {
 
@@ -17,14 +18,14 @@ private:
     bool validate_request_method_uri_and_version(std::string const&);
     bool validate_header_fields();
     std::string generate_accept_key(std::string const&);
-    bool send_response();
+    bool send_response(int client_fd);
 
 private:
     int sock_ = -1;
     int port_ = -1;
     std::unordered_map<std::string, std::string> header_fields_;
+    std::unordered_map<int, int> clients_; ///< keyed by 4 byte ip
     std::string accept_key_;
-    int client_fd_ = -1;
 };
 
 } // namespace ws

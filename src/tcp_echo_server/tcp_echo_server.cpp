@@ -1,11 +1,10 @@
 #include "tcp_echo_server.hpp"
 #include "../base64_codec.hpp"
-#include "../websocket_frame.hpp"
 #include "../sha1.hpp"
 #include "../str_utils.hpp"
-#include <arpa/inet.h>
+#include "../websocket_frame.hpp"
+#include <arpa/inet.h> // ::inet_ntop
 #include <netdb.h>
-#include <netinet/in.h>
 #include <spdlog/spdlog.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -25,8 +24,8 @@ tcp_echo_server::tcp_echo_server(int port)
         : sock_(-1)
         , port_(port)
         , header_fields_()
+        , clients_()
         , accept_key_()
-        , client_fd_(-1)
 {
     SPDLOG_DEBUG("tcp_echo_server instantiated");
     sock_ = ::socket(PF_INET, SOCK_STREAM, 0);
@@ -63,10 +62,25 @@ tcp_echo_server::listen()
     while (true) {
         sockaddr_storage their_addr;
         socklen_t addr_size = sizeof(their_addr);
-        client_fd_ = ::accept(sock_, reinterpret_cast<sockaddr*>(&their_addr), &addr_size);
+        int client_fd = ::accept(sock_, reinterpret_cast<sockaddr*>(&their_addr), &addr_size);
+        if (their_addr.ss_family != AF_INET) {
+            SPDLOG_CRITICAL("only ipv4 implemented");
+            std::abort();
+        }
+        auto const* sin = reinterpret_cast<sockaddr_in const*>(&their_addr);
+        clients_.emplace(sin->sin_addr.s_addr, client_fd);
+        char ip_storage[INET_ADDRSTRLEN];
+        char const* ip = nullptr;
+        if (ip = ::inet_ntop(AF_INET, &(sin->sin_addr), ip_storage, INET_ADDRSTRLEN);
+                ip == nullptr) {
+            SPDLOG_CRITICAL("inet_ntop: {}: {}", std::strerror(errno), errno);
+            std::abort();
+        }
+
+        SPDLOG_INFO("client [{}:{}] connected, fd={}", ip, sin->sin_port, client_fd);
 
         std::array<char, 4096> buf{};
-        ssize_t const bytes_read = ::recv(client_fd_, buf.data(), buf.size(), 0);
+        ssize_t const bytes_read = ::recv(client_fd, buf.data(), buf.size(), 0);
         if (bytes_read == 0) {
             ::close(sock_);
             continue;
@@ -82,7 +96,7 @@ tcp_echo_server::listen()
         }
         SPDLOG_DEBUG("- - -");
 
-        if (!send_response()) {
+        if (!send_response(client_fd)) {
             SPDLOG_ERROR("failed to send response");
             return false;
         } else {
@@ -258,7 +272,7 @@ tcp_echo_server::generate_accept_key(std::string const& key)
 }
 
 bool
-tcp_echo_server::send_response()
+tcp_echo_server::send_response(int client_fd)
 {
     std::string response;
     response += "HTTP/1.1 101 Switching Protocols\r\n";
@@ -268,7 +282,7 @@ tcp_echo_server::send_response()
     SPDLOG_DEBUG("response=\n{}", response);
 
     SPDLOG_DEBUG("sending {} bytes", response.size());
-    ssize_t nbytes = ::send(client_fd_, response.c_str(), static_cast<ssize_t>(response.size()), 0);
+    ssize_t nbytes = ::send(client_fd, response.c_str(), static_cast<ssize_t>(response.size()), 0);
     if (nbytes == -1) {
         SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
         return false;
