@@ -33,14 +33,16 @@ private:
     bool on_incoming_data(int fd) noexcept;
 
     /// Called when a websocket upgrade request detected
-    bool on_websocket_upgrade_request(
-            int fd, std::unordered_map<std::string, std::string> const& header_fields);
+    bool on_websocket_upgrade_request(int fd,
+            std::unordered_map<std::string, std::string> const& header_fields) const noexcept;
 
-    bool parse_http_request(int fd, std::string const&);
-    bool validate_request_method_uri_and_version(std::string const&);
-    bool validate_header_fields(std::unordered_map<std::string, std::string> const& header_fields);
-    std::string generate_accept_key(std::string const&);
-    bool send_websocket_accept(int fd, std::string const& sec_websocket_key);
+private:
+    bool parse_http_request(int fd, std::string const&) const noexcept;
+    bool validate_request_method_uri_and_version(std::string const&) const noexcept;
+    bool validate_header_fields(
+            std::unordered_map<std::string, std::string> const& header_fields) const noexcept;
+    std::string generate_accept_key(std::string const&) const noexcept;
+    bool send_websocket_accept(int fd, std::string const& sec_websocket_key) const noexcept;
 
 private:
     static constexpr std::uint16_t ListenPort = 8000; ///< default listening port

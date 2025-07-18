@@ -246,7 +246,31 @@ tcp_echo_server::on_incoming_data(int fd) noexcept
 }
 
 bool
-tcp_echo_server::parse_http_request(int fd, std::string const& req)
+tcp_echo_server::on_websocket_upgrade_request(
+        int fd, std::unordered_map<std::string, std::string> const& header_fields) const noexcept
+{
+    if (!validate_header_fields(header_fields)) {
+        SPDLOG_ERROR("header fields validation failed");
+        return false;
+    }
+
+    auto itr = header_fields.find("sec-websocket-key");
+    assert(itr != header_fields.end());
+
+    if (!send_websocket_accept(fd, itr->second)) {
+        SPDLOG_ERROR("failed to send websocket accept");
+        return false;
+    } else {
+        SPDLOG_INFO("response sent");
+    }
+
+
+    return true;
+}
+
+
+bool
+tcp_echo_server::parse_http_request(int fd, std::string const& req) const noexcept
 {
     std::string method;
     std::unordered_map<std::string, std::string> header_fields;
@@ -293,31 +317,8 @@ tcp_echo_server::parse_http_request(int fd, std::string const& req)
 }
 
 bool
-tcp_echo_server::on_websocket_upgrade_request(
-        int fd, std::unordered_map<std::string, std::string> const& header_fields)
-{
-    if (!validate_header_fields(header_fields)) {
-        SPDLOG_ERROR("header fields validation failed");
-        return false;
-    }
-
-    auto itr = header_fields.find("sec-websocket-key");
-    assert(itr != header_fields.end());
-
-    if (!send_websocket_accept(fd, itr->second)) {
-        SPDLOG_ERROR("failed to send websocket accept");
-        return false;
-    } else {
-        SPDLOG_INFO("response sent");
-    }
-
-
-    return true;
-}
-
-
-bool
-tcp_echo_server::validate_request_method_uri_and_version(std::string const& method_and_ver)
+tcp_echo_server::validate_request_method_uri_and_version(
+        std::string const& method_and_ver) const noexcept
 {
     // According to RFC 2616, section 5.1.1
     // The Method token indicates the method to be performed on the resource identified by
@@ -349,7 +350,7 @@ tcp_echo_server::validate_request_method_uri_and_version(std::string const& meth
 
 bool
 tcp_echo_server::validate_header_fields(
-        std::unordered_map<std::string, std::string> const& header_fields)
+        std::unordered_map<std::string, std::string> const& header_fields) const noexcept
 {
     // According to RFC 7230, section 3.2:
     // Each header field consists of a case-insensitive field name
@@ -423,7 +424,7 @@ tcp_echo_server::validate_header_fields(
 }
 
 std::string
-tcp_echo_server::generate_accept_key(std::string const& key)
+tcp_echo_server::generate_accept_key(std::string const& key) const noexcept
 {
     SPDLOG_INFO("key={}", key);
     std::string const concat = key + std::string(MagicGuid);
@@ -442,7 +443,8 @@ tcp_echo_server::generate_accept_key(std::string const& key)
 }
 
 bool
-tcp_echo_server::send_websocket_accept(int client_fd, std::string const& sec_websocket_key)
+tcp_echo_server::send_websocket_accept(
+        int client_fd, std::string const& sec_websocket_key) const noexcept
 {
     std::string accept_key = generate_accept_key(sec_websocket_key);
     std::string response = "HTTP/1.1 101 Switching Protocols\r\n"
