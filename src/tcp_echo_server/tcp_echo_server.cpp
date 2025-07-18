@@ -445,11 +445,11 @@ bool
 tcp_echo_server::send_websocket_accept(int client_fd, std::string const& sec_websocket_key)
 {
     std::string accept_key = generate_accept_key(sec_websocket_key);
-    std::string response;
-    response += "HTTP/1.1 101 Switching Protocols\r\n";
-    response += "Upgrade: websocket\r\n";
-    response += "Connection: Upgrade\r\n";
-    response += "Sec-WebSocket-Accept: " + accept_key + "\r\n\r\n";
+    std::string response = "HTTP/1.1 101 Switching Protocols\r\n"
+                           "Upgrade: websocket\r\n"
+                           "Connection: Upgrade\r\n"
+                           "Sec-WebSocket-Accept: "
+            + accept_key + "\r\n\r\n";
     SPDLOG_DEBUG("response=\n{}", response);
 
     SPDLOG_DEBUG("sending {} bytes", response.size());
