@@ -4,112 +4,252 @@
 #include "../str_utils.hpp"
 #include "../websocket_frame.hpp"
 #include <arpa/inet.h> // ::inet_ntop
+#include <fcntl.h>     // ::fcntl
 #include <netdb.h>
+#include <netinet/in.h>
 #include <spdlog/spdlog.h>
-#include <sys/socket.h>
+#include <sys/epoll.h>
+#include <sys/socket.h> // ::setsockopt
 #include <sys/types.h>
 #include <unistd.h>  // ::close
 #include <algorithm> // std::find_if
-#include <cstdlib>   // std::abort
-#include <cstring>
-#include <print>
+#include <cassert>
+#include <cstdlib> // std::abort
+#include <cstring> // std::memset, std::strerror
 #include <unordered_map>
 #include <vector>
 
 namespace ws {
+namespace {
+    static constexpr int ListenBacklog = 10;     ///< max num of pending connections
+    static constexpr int EpollMaxEvents = 20;    ///< max num of pending epoll events
+    static constexpr int EpollTimeoutMsecs = 10; ///< num of milliseconds to block on epoll_wait
+    static constexpr int IncomingBufferSizeBytes = 4096; ///< size of recv buffer
+    static constexpr std::string_view MagicGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+} // namespace
 
-static constexpr std::string_view MAGIC_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 tcp_echo_server::tcp_echo_server(int port)
-        : sock_(-1)
-        , port_(port)
-        , header_fields_()
+        : port_(port)
+        , sockfd_(-1)
+        , epollfd_(-1)
         , clients_()
 {
-    SPDLOG_DEBUG("tcp_echo_server instantiated");
-    sock_ = ::socket(PF_INET, SOCK_STREAM, 0);
-    if (sock_ == -1) {
-        SPDLOG_CRITICAL("socket: {}: {}", std::strerror(errno), errno);
+    addrinfo hints{};
+
+    std::memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;     // ipv4 or ipv6
+    hints.ai_socktype = SOCK_STREAM; // tcp
+    hints.ai_flags = AI_PASSIVE;     // wildcard ip
+    hints.ai_protocol = 0;
+    hints.ai_canonname = nullptr;
+    hints.ai_addr = nullptr;
+    hints.ai_next = nullptr;
+
+    // get local address
+    addrinfo* result = nullptr;
+    if (int rv = ::getaddrinfo(nullptr, std::to_string(port_).c_str(), &hints, &result); rv != 0) {
+        throw std::runtime_error(std::string("getaddrinfo: ") + std::strerror(errno));
     }
 
-    sockaddr_in addr{.sin_family = AF_INET,
-            .sin_port = std::byteswap(std::uint16_t(port)),
-            .sin_addr = {INADDR_ANY},
-            .sin_zero = 0};
+    // get socket
+    sockfd_ = ::socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    if (sockfd_ == -1) {
+        throw std::runtime_error(std::string("socket: ") + std::strerror(errno));
+    }
 
-    if (::bind(sock_, reinterpret_cast<sockaddr const*>(&addr), sizeof(addr)) == -1) {
-        SPDLOG_CRITICAL("bind: {}: {}", std::strerror(errno), errno);
-        std::abort();
+    if (int rv = ::bind(sockfd_, result->ai_addr, result->ai_addrlen); rv == -1) {
+        throw std::runtime_error(std::string("bind: ") + std::strerror(errno));
+    }
+
+    ::freeaddrinfo(result);
+
+    // allow for socket reuse
+    int const yes = 1;
+    if (int rv = ::setsockopt(sockfd_, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)); rv == -1) {
+        throw std::runtime_error(std::string("setsockopt (SO_REUSEADDR): ") + std::strerror(errno));
+    }
+    if (int rv = ::setsockopt(sockfd_, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof(yes)); rv == -1) {
+        throw std::runtime_error(std::string("setsockopt (SO_REUSEPORT): ") + std::strerror(errno));
+    }
+
+    // set socket as non-blocking
+    if (int rv = ::fcntl(sockfd_, F_SETFL, O_NONBLOCK); rv == -1) {
+        throw std::runtime_error(std::string("fcntl (O_NONBLOCK): ") + std::strerror(errno));
+    }
+
+    // get epoll fd
+    epollfd_ = ::epoll_create1(0);
+    if (epollfd_ == -1) {
+        throw std::runtime_error(std::string("epoll_create1: ") + std::strerror(errno));
     }
 }
 
-tcp_echo_server::~tcp_echo_server()
+tcp_echo_server::~tcp_echo_server() noexcept
 {
-    ::close(sock_);
+    ::close(sockfd_);
+    ::close(epollfd_);
+
+    for (auto sock : clients_) {
+        ::close(sock);
+    }
 }
 
 bool
-tcp_echo_server::listen()
+tcp_echo_server::run()
 {
-    if (int rv = ::listen(sock_, 5); rv == -1) {
-        SPDLOG_CRITICAL("listen: {}: {}", std::strerror(errno), errno);
+    // start listening
+    if (int rv = ::listen(sockfd_, ListenBacklog); rv == -1) {
+        SPDLOG_CRITICAL("error: listen {}: {}", std::strerror(errno), errno);
+        return false;
+    }
+    SPDLOG_INFO("listening on port {}", port_);
+
+    // Add our listening socket to epoll.
+    epoll_event event{};
+    event.data.fd = sockfd_;
+    event.events = (EPOLLIN | EPOLLET);
+    if (int rv = ::epoll_ctl(epollfd_, EPOLL_CTL_ADD, sockfd_, &event); rv == -1) {
+        SPDLOG_CRITICAL("error: epoll_ctl: {} {}", std::strerror(errno), errno);
         return false;
     }
 
-    SPDLOG_INFO("tcp_echo_server listening on port {}...", port_);
-
-    while (true) {
-        sockaddr_storage their_addr;
-        socklen_t addr_size = sizeof(their_addr);
-        int client_fd = ::accept(sock_, reinterpret_cast<sockaddr*>(&their_addr), &addr_size);
-        if (their_addr.ss_family != AF_INET) {
-            SPDLOG_CRITICAL("only ipv4 implemented");
-            std::abort();
-        }
-        auto const* sin = reinterpret_cast<sockaddr_in const*>(&their_addr);
-        clients_.emplace(sin->sin_addr.s_addr, client_fd);
-        char ip_storage[INET_ADDRSTRLEN];
-        char const* ip = nullptr;
-        if (ip = ::inet_ntop(AF_INET, &(sin->sin_addr), ip_storage, INET_ADDRSTRLEN);
-                ip == nullptr) {
-            SPDLOG_CRITICAL("inet_ntop: {}: {}", std::strerror(errno), errno);
-            std::abort();
-        }
-
-        SPDLOG_INFO("client [{}:{}] connected, fd={}", ip, sin->sin_port, client_fd);
-
-        std::array<char, 4096> buf{};
-        ssize_t const bytes_read = ::recv(client_fd, buf.data(), buf.size(), 0);
-        if (bytes_read == 0) {
-            ::close(sock_);
-            continue;
-        }
-
-        std::string str(buf.data(), static_cast<std::size_t>(bytes_read));
-        SPDLOG_DEBUG("{}", str);
-
-        SPDLOG_DEBUG("- - -");
-        if (!parse_request(str)) {
-            SPDLOG_ERROR("parse_request failed");
+    epoll_event events[EpollMaxEvents];
+    for (;;) {
+        int const num_events = ::epoll_wait(
+                epollfd_, static_cast<epoll_event*>(events), EpollMaxEvents, EpollTimeoutMsecs);
+        if (num_events == -1) {
+            SPDLOG_CRITICAL("error: epoll_wait: {} {}", std::strerror(errno), errno);
             return false;
         }
-        SPDLOG_DEBUG("- - -");
 
-        if (!send_websocket_accept(client_fd)) {
-            SPDLOG_ERROR("failed to send response");
-            return false;
-        } else {
-            SPDLOG_INFO("response sent");
+        for (int i = 0; i < num_events; ++i) {
+            // Check for flag that we aren't listening for. Not sure if this is necessary.
+            if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)) { // NOLINT
+                SPDLOG_ERROR("error: unexpected event on fd {}\n", i);
+
+                auto itr = std::find(clients_.begin(), clients_.end(), events[i].data.fd); // NOLINT
+                assert(itr != clients_.end());
+
+                clients_.erase(itr);
+                ::close(events[i].data.fd); // NOLINT
+                continue;
+            }
+
+            if (events[i].data.fd == sockfd_) { // NOLINT
+                bool const status = on_incoming_connection();
+                if (!status) {
+                    return false;
+                }
+            } else {
+                bool const status = on_incoming_data(events[i].data.fd); // NOLINT
+                if (!status) {
+                    return false;
+                }
+            }
+        } // for each event
+    } // main event loop
+
+    return true;
+}
+
+bool
+tcp_echo_server::on_incoming_connection() noexcept
+{
+    // accept the connection
+    sockaddr_storage their_addr{};
+    socklen_t addr_size = sizeof(their_addr);
+    int const accepted_sock
+            = ::accept(sockfd_, reinterpret_cast<sockaddr*>(&their_addr), &addr_size);
+    if (accepted_sock == -1) {
+        if (errno == EAGAIN) {
+            return true; // not an error
         }
+        SPDLOG_CRITICAL("error: accept: {} {}", std::strerror(errno), errno);
+        return false;
+    }
+
+    auto const* sin = reinterpret_cast<sockaddr_in const*>(&their_addr);
+    char ip_storage[INET_ADDRSTRLEN];
+    char const* ip = nullptr;
+    if (ip = ::inet_ntop(AF_INET, &(sin->sin_addr), ip_storage, INET_ADDRSTRLEN); ip == nullptr) {
+        SPDLOG_CRITICAL("inet_ntop: {}: {}", std::strerror(errno), errno);
+        std::abort();
+    }
+
+    SPDLOG_INFO("client [{}:{}] connected on socket fd={}", ip, sin->sin_port, accepted_sock);
+
+    // Successfully connected. Store the new fd.
+    clients_.emplace_back(accepted_sock);
+
+    // add the new fd to epoll
+    epoll_event event{};
+    event.events = (EPOLLIN | EPOLLET);
+    event.data.fd = accepted_sock;
+    if (int rv = ::epoll_ctl(epollfd_, EPOLL_CTL_ADD, accepted_sock, &event); rv == -1) {
+        SPDLOG_CRITICAL("error: epoll_ctl (EPOLL_CTL_ADD): {} {}", std::strerror(errno), errno);
+        return false;
     }
 
     return true;
 }
 
 bool
-tcp_echo_server::parse_request(std::string const& req)
+tcp_echo_server::on_incoming_data(int fd) noexcept
+{
+    char buf[IncomingBufferSizeBytes];
+
+    ssize_t const bytes_recvd = ::recv(fd, &buf, sizeof(buf), 0);
+    if (bytes_recvd == -1) {
+        SPDLOG_CRITICAL("error: epoll_ctl (EPOLL_CTL_ADD): {} {}", std::strerror(errno), errno);
+        return false;
+    }
+
+    // client disconnected
+    if (bytes_recvd == 0) {
+        SPDLOG_INFO("client on fd {} disconnected", fd);
+
+        auto itr = std::find(clients_.begin(), clients_.end(), fd);
+        assert(itr != clients_.end());
+        clients_.erase(itr);
+
+        epoll_event event{};
+        event.events = (EPOLLIN | EPOLLET);
+        event.data.fd = fd;
+        if (int rv = ::epoll_ctl(epollfd_, EPOLL_CTL_DEL, fd, &event); rv == -1) {
+            SPDLOG_CRITICAL("error: epoll_ctl (EPOLL_CTL_DEL): {} {}", std::strerror(errno), errno);
+            return false;
+        }
+
+        assert(::close(fd) != -1);
+        return true;
+    }
+
+    std::string str(buf, static_cast<std::size_t>(bytes_recvd));
+    SPDLOG_DEBUG("{}", str);
+
+    if (!parse_http_request(fd, str)) {
+        SPDLOG_ERROR("parse_http_request failed");
+        return false;
+    }
+
+    // echo
+    // ::ssize_t const bytes_sent = ::send(fd, &buf, static_cast<std::size_t>(bytes_recvd), 0);
+    // if (bytes_sent == -1) {
+    //     SPDLOG_CRITICAL("error: send: {} {}", std::strerror(errno), errno);
+    //     return false;
+    // }
+
+    // buf[bytes_recvd - 1] = '\0'; // NOLINT
+    // SPDLOG_INFO("[on_incoming_data] fd={}, buf={}\n", fd, buf);
+    return true;
+}
+
+bool
+tcp_echo_server::parse_http_request(int fd, std::string const& req)
 {
     std::string method;
+    std::unordered_map<std::string, std::string> header_fields;
 
     // extract command
     std::size_t pos = 0;
@@ -135,25 +275,53 @@ tcp_echo_server::parse_request(std::string const& req)
 
         trim(header_key);
         trim(header_val);
-        header_fields_.emplace(to_lower(header_key), header_val);
+        header_fields.emplace(to_lower(header_key), header_val);
 
         pos = newline_pos + 2;
     }
 
-    if (!validate_header_fields()) {
-        SPDLOG_ERROR("header fields validation failed");
-        return false;
+    if (header_fields.contains("upgrade")) {
+        if (!on_websocket_upgrade_request(fd, header_fields)) {
+            SPDLOG_ERROR("invalid websocket upgrade request");
+            return false;
+        }
+    } else {
+        // TODO
     }
 
     return true;
 }
 
 bool
+tcp_echo_server::on_websocket_upgrade_request(
+        int fd, std::unordered_map<std::string, std::string> const& header_fields)
+{
+    if (!validate_header_fields(header_fields)) {
+        SPDLOG_ERROR("header fields validation failed");
+        return false;
+    }
+
+    auto itr = header_fields.find("sec-websocket-key");
+    assert(itr != header_fields.end());
+
+    if (!send_websocket_accept(fd, itr->second)) {
+        SPDLOG_ERROR("failed to send websocket accept");
+        return false;
+    } else {
+        SPDLOG_INFO("response sent");
+    }
+
+
+    return true;
+}
+
+
+bool
 tcp_echo_server::validate_request_method_uri_and_version(std::string const& method_and_ver)
 {
     // According to RFC 2616, section 5.1.1
-    // The Method token indicates the method to be performed on the resource identified by the
-    // Request-URI. The method is case-sensitive.
+    // The Method token indicates the method to be performed on the resource identified by
+    // the Request-URI. The method is case-sensitive.
     std::string str = to_upper(method_and_ver);
 
     std::vector<std::string> tokens = tokenize(str);
@@ -180,52 +348,56 @@ tcp_echo_server::validate_request_method_uri_and_version(std::string const& meth
 }
 
 bool
-tcp_echo_server::validate_header_fields()
+tcp_echo_server::validate_header_fields(
+        std::unordered_map<std::string, std::string> const& header_fields)
 {
     // According to RFC 7230, section 3.2:
     // Each header field consists of a case-insensitive field name
     // followed by a colon (":"), optional leading whitespace, the field
     // value, and optional trailing whitespace.
-    for (auto& [key, val] : header_fields_) {
+    for (auto& [key, val] : header_fields) {
         SPDLOG_DEBUG("header_fields key={}, val={}", key, val);
     }
 
     // Upgrade
     {
-        constexpr char key[] = "upgrade";
-        if (!header_fields_.contains(key)) {
+        static constexpr char key[] = "upgrade";
+        auto itr = header_fields.find(key);
+        if (itr == header_fields.end()) {
             SPDLOG_CRITICAL("missing '{}' field", key);
             return false;
         }
-        auto const& val = to_lower(header_fields_[key]);
+        auto const& val = itr->second;
         if (val != "websocket") {
-            SPDLOG_CRITICAL("invalid '{}' value: [{}]", key, val);
+            SPDLOG_CRITICAL("invalid '{}' value: [{}], expected 'websocket'", key, val);
             return false;
         }
     }
 
     // Connection
     {
-        constexpr char key[] = "connection";
-        if (!header_fields_.contains(key)) {
+        static constexpr char key[] = "connection";
+        auto itr = header_fields.find(key);
+        if (itr == header_fields.end()) {
             SPDLOG_CRITICAL("missing '{}' field", key);
             return false;
         }
-        auto const& val = header_fields_[key];
+        auto const& val = itr->second;
         if (!val.contains("Upgrade")) {
-            SPDLOG_CRITICAL("invalid '{}' value: [{}]", key, val);
+            SPDLOG_CRITICAL("invalid '{}' value: [{}], expected 'Upgrade'", key, val);
             return false;
         }
     }
 
     // Sec-Websocket-Version
     {
-        constexpr char key[] = "sec-websocket-version";
-        if (!header_fields_.contains(key)) {
+        static constexpr char key[] = "sec-websocket-version";
+        auto itr = header_fields.find(key);
+        if (itr == header_fields.end()) {
             SPDLOG_CRITICAL("missing '{}' field", key);
             return false;
         }
-        auto const& val = header_fields_[key];
+        auto const& val = itr->second;
         if (val.empty()) {
             SPDLOG_CRITICAL("invalid '{}' value: [{}]", key, val);
             return false;
@@ -234,12 +406,13 @@ tcp_echo_server::validate_header_fields()
 
     // Sec-Websocket-Key
     {
-        constexpr char key[] = "sec-websocket-key";
-        if (!header_fields_.contains(key)) {
+        static constexpr char key[] = "sec-websocket-key";
+        auto itr = header_fields.find(key);
+        if (itr == header_fields.end()) {
             SPDLOG_CRITICAL("missing '{}' field", key);
             return false;
         }
-        auto const& val = header_fields_[key];
+        auto const& val = itr->second;
         if (val.empty()) {
             SPDLOG_CRITICAL("invalid '{}' value: [{}]", key, val);
             return false;
@@ -253,14 +426,14 @@ std::string
 tcp_echo_server::generate_accept_key(std::string const& key)
 {
     SPDLOG_INFO("key={}", key);
-    std::string const concat = key + std::string(MAGIC_GUID);
+    std::string const concat = key + std::string(MagicGuid);
     SPDLOG_INFO("concat={}", concat);
 
     // Get the raw SHA-1 hash bytes (not hex string!)
     auto const sha1_digest = sha1::hash(concat);
     SPDLOG_INFO("sha1_digest raw bytes computed");
 
-    // Base64-encode the raw bytes directly
+    // base64-encode the raw bytes directly
     std::string_view raw_bytes(
             reinterpret_cast<const char*>(sha1_digest.data()), sha1_digest.size());
     std::string b64_hash = to_base64(raw_bytes);
@@ -269,9 +442,9 @@ tcp_echo_server::generate_accept_key(std::string const& key)
 }
 
 bool
-tcp_echo_server::send_websocket_accept(int client_fd)
+tcp_echo_server::send_websocket_accept(int client_fd, std::string const& sec_websocket_key)
 {
-    std::string accept_key = generate_accept_key(header_fields_["sec-websocket-key"]);
+    std::string accept_key = generate_accept_key(sec_websocket_key);
     std::string response;
     response += "HTTP/1.1 101 Switching Protocols\r\n";
     response += "Upgrade: websocket\r\n";
