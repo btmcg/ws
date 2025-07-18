@@ -25,7 +25,6 @@ tcp_echo_server::tcp_echo_server(int port)
         , port_(port)
         , header_fields_()
         , clients_()
-        , accept_key_()
 {
     SPDLOG_DEBUG("tcp_echo_server instantiated");
     sock_ = ::socket(PF_INET, SOCK_STREAM, 0);
@@ -96,7 +95,7 @@ tcp_echo_server::listen()
         }
         SPDLOG_DEBUG("- - -");
 
-        if (!send_response(client_fd)) {
+        if (!send_websocket_accept(client_fd)) {
             SPDLOG_ERROR("failed to send response");
             return false;
         } else {
@@ -245,8 +244,6 @@ tcp_echo_server::validate_header_fields()
             SPDLOG_CRITICAL("invalid '{}' value: [{}]", key, val);
             return false;
         }
-
-        accept_key_ = generate_accept_key(val);
     }
 
     return true;
@@ -272,13 +269,14 @@ tcp_echo_server::generate_accept_key(std::string const& key)
 }
 
 bool
-tcp_echo_server::send_response(int client_fd)
+tcp_echo_server::send_websocket_accept(int client_fd)
 {
+    std::string accept_key = generate_accept_key(header_fields_["sec-websocket-key"]);
     std::string response;
     response += "HTTP/1.1 101 Switching Protocols\r\n";
     response += "Upgrade: websocket\r\n";
     response += "Connection: Upgrade\r\n";
-    response += "Sec-WebSocket-Accept: " + accept_key_ + "\r\n\r\n";
+    response += "Sec-WebSocket-Accept: " + accept_key + "\r\n\r\n";
     SPDLOG_DEBUG("response=\n{}", response);
 
     SPDLOG_DEBUG("sending {} bytes", response.size());
