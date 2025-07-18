@@ -3,40 +3,39 @@ project('ws', 'cpp',
   default_options : ['warning_level=3',
                      'cpp_std=c++23'])
 
-# Import filesystem module
+# import filesystem module
 fs = import('fs')
 
-# Include directories
+# include directories
 inc_dir = include_directories('src')
 
-# Find all C++ source files in src directory
+# find all C++ source files in src directory
 src_files = files(
   'src/base64_codec.cpp',
   'src/sha1.cpp',
 )
 
-# Main executable source files
+# main executable source files
 main_files = src_files + files('src/main.cpp')
 
-# TCP Echo Server source files
-tcp_echo_server_files = files(
-  'src/tcp_echo_server/tcp_echo_server.cpp',
-  'src/tcp_echo_server/main.cpp',
+# echo server source files
+echo_server_files = files(
+  'src/echo_server/echo_server.cpp',
+  'src/echo_server/main.cpp',
 )
 
 
-# Find spdlog dependency
+# find spdlog dependency
 add_global_arguments('-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE', language : 'cpp')
 spdlog_dep = dependency('spdlog', required: true)
 
-
-# Find Catch2 dependency
+# find Catch2 dependency
 catch2_dep = dependency('catch2-with-main', required: false)
 if not catch2_dep.found()
   catch2_dep = dependency('catch2', required: false)
 endif
 
-# If Catch2 is not found via pkg-config, try to find it as a subproject
+# if Catch2 is not found via pkg-config, try to find it as a subproject
 if not catch2_dep.found()
   catch2_proj = subproject('catch2', required: false)
   if catch2_proj.found()
@@ -44,7 +43,7 @@ if not catch2_dep.found()
   endif
 endif
 
-# Define the main executable
+# define the main executable
 executable('ws',
   sources : main_files,
   include_directories : inc_dir,
@@ -56,9 +55,9 @@ ws_lib = static_library('ws_lib',
   include_directories : inc_dir,
   dependencies : [spdlog_dep])
 
-# Define the TCP echo server executable
-executable('tcp_echo_server',
-  sources : tcp_echo_server_files,
+# define the echo server executable
+executable('echo_server',
+  sources : echo_server_files,
   include_directories : inc_dir,
   link_with : ws_lib,
   dependencies : [spdlog_dep],

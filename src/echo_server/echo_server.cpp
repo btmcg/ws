@@ -1,4 +1,4 @@
-#include "tcp_echo_server.hpp"
+#include "echo_server.hpp"
 #include "../base64_codec.hpp"
 #include "../sha1.hpp"
 #include "../str_utils.hpp"
@@ -29,7 +29,7 @@ namespace {
 } // namespace
 
 
-tcp_echo_server::tcp_echo_server(int port)
+echo_server::echo_server(int port)
         : port_(port)
         , sockfd_(-1)
         , epollfd_(-1)
@@ -85,7 +85,7 @@ tcp_echo_server::tcp_echo_server(int port)
     }
 }
 
-tcp_echo_server::~tcp_echo_server() noexcept
+echo_server::~echo_server() noexcept
 {
     ::close(sockfd_);
     ::close(epollfd_);
@@ -96,7 +96,7 @@ tcp_echo_server::~tcp_echo_server() noexcept
 }
 
 bool
-tcp_echo_server::run()
+echo_server::run()
 {
     // start listening
     if (int rv = ::listen(sockfd_, ListenBacklog); rv == -1) {
@@ -154,7 +154,7 @@ tcp_echo_server::run()
 }
 
 bool
-tcp_echo_server::on_incoming_connection() noexcept
+echo_server::on_incoming_connection() noexcept
 {
     // accept the connection
     sockaddr_storage their_addr{};
@@ -195,7 +195,7 @@ tcp_echo_server::on_incoming_connection() noexcept
 }
 
 bool
-tcp_echo_server::on_incoming_data(int fd) noexcept
+echo_server::on_incoming_data(int fd) noexcept
 {
     char buf[IncomingBufferSizeBytes];
 
@@ -250,7 +250,7 @@ tcp_echo_server::on_incoming_data(int fd) noexcept
 }
 
 bool
-tcp_echo_server::on_http_request(int fd, std::string const& req) const noexcept
+echo_server::on_http_request(int fd, std::string const& req) const noexcept
 {
     std::string method;
     std::unordered_map<std::string, std::string> header_fields;
@@ -297,7 +297,7 @@ tcp_echo_server::on_http_request(int fd, std::string const& req) const noexcept
 }
 
 bool
-tcp_echo_server::on_websocket_upgrade_request(
+echo_server::on_websocket_upgrade_request(
         int fd, std::unordered_map<std::string, std::string> const& header_fields) const noexcept
 {
     if (!validate_header_fields(header_fields)) {
@@ -321,7 +321,7 @@ tcp_echo_server::on_websocket_upgrade_request(
 
 
 bool
-tcp_echo_server::validate_request_method_uri_and_version(
+echo_server::validate_request_method_uri_and_version(
         std::string const& method_and_ver) const noexcept
 {
     // According to RFC 2616, section 5.1.1
@@ -353,7 +353,7 @@ tcp_echo_server::validate_request_method_uri_and_version(
 }
 
 bool
-tcp_echo_server::validate_header_fields(
+echo_server::validate_header_fields(
         std::unordered_map<std::string, std::string> const& header_fields) const noexcept
 {
     // According to RFC 7230, section 3.2:
@@ -428,7 +428,7 @@ tcp_echo_server::validate_header_fields(
 }
 
 std::string
-tcp_echo_server::generate_accept_key(std::string const& key) const noexcept
+echo_server::generate_accept_key(std::string const& key) const noexcept
 {
     SPDLOG_INFO("key={}", key);
     std::string const concat = key + std::string(MagicGuid);
@@ -447,7 +447,7 @@ tcp_echo_server::generate_accept_key(std::string const& key) const noexcept
 }
 
 bool
-tcp_echo_server::send_websocket_accept(
+echo_server::send_websocket_accept(
         int client_fd, std::string const& sec_websocket_key) const noexcept
 {
     std::string accept_key = generate_accept_key(sec_websocket_key);

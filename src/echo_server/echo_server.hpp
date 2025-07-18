@@ -7,17 +7,17 @@
 
 namespace ws {
 
-class tcp_echo_server
+class echo_server
 {
 public:
-    tcp_echo_server(int port);
-    ~tcp_echo_server() noexcept;
+    echo_server(int port);
+    ~echo_server() noexcept;
 
     // No copies/moves
-    tcp_echo_server(tcp_echo_server const&) = delete;
-    tcp_echo_server(tcp_echo_server&&) = delete;
-    tcp_echo_server& operator=(tcp_echo_server const&) = delete;
-    tcp_echo_server&& operator=(tcp_echo_server&&) = delete;
+    echo_server(echo_server const&) = delete;
+    echo_server(echo_server&&) = delete;
+    echo_server& operator=(echo_server const&) = delete;
+    echo_server&& operator=(echo_server&&) = delete;
 
     /// Start the server and begin listening on socket.
     /// \return \c false on error

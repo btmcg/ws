@@ -1,4 +1,4 @@
-#include "tcp_echo_server.hpp"
+#include "echo_server.hpp"
 #include <spdlog/spdlog.h>
 #include <cstdlib> // EXIT_FAILURE, EXIT_SUCCESS
 
@@ -16,7 +16,7 @@ main(int argc, char* argv[])
     }
 
     try {
-        ws::tcp_echo_server server(port);
+        ws::echo_server server(port);
         if (!server.run()) {
             SPDLOG_CRITICAL("error: server shutdown with an error");
             return EXIT_FAILURE;
