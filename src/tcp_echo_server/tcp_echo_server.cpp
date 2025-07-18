@@ -18,7 +18,7 @@
 
 namespace ws {
 
-static constexpr std::string_view GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+static constexpr std::string_view MAGIC_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 tcp_echo_server::tcp_echo_server(int port)
         : sock_(-1)
@@ -253,7 +253,7 @@ std::string
 tcp_echo_server::generate_accept_key(std::string const& key)
 {
     SPDLOG_INFO("key={}", key);
-    std::string const concat = key + std::string(GUID);
+    std::string const concat = key + std::string(MAGIC_GUID);
     SPDLOG_INFO("concat={}", concat);
 
     // Get the raw SHA-1 hash bytes (not hex string!)
