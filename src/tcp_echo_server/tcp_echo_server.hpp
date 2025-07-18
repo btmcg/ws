@@ -32,12 +32,14 @@ private:
     /// \return \c false on error
     bool on_incoming_data(int fd) noexcept;
 
+    /// Called on http request
+    bool on_http_request(int fd, std::string const&) const noexcept;
+
     /// Called when a websocket upgrade request detected
     bool on_websocket_upgrade_request(int fd,
             std::unordered_map<std::string, std::string> const& header_fields) const noexcept;
 
 private:
-    bool parse_http_request(int fd, std::string const&) const noexcept;
     bool validate_request_method_uri_and_version(std::string const&) const noexcept;
     bool validate_header_fields(
             std::unordered_map<std::string, std::string> const& header_fields) const noexcept;

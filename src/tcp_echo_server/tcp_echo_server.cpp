@@ -228,9 +228,13 @@ tcp_echo_server::on_incoming_data(int fd) noexcept
     std::string str(buf, static_cast<std::size_t>(bytes_recvd));
     SPDLOG_DEBUG("{}", str);
 
-    if (!parse_http_request(fd, str)) {
-        SPDLOG_ERROR("parse_http_request failed");
-        return false;
+    if (str.starts_with("GET")) {
+        if (!on_http_request(fd, str)) {
+            SPDLOG_ERROR("on_http_request failed");
+            return false;
+        }
+    } else {
+        // TODO
     }
 
     // echo
@@ -246,31 +250,7 @@ tcp_echo_server::on_incoming_data(int fd) noexcept
 }
 
 bool
-tcp_echo_server::on_websocket_upgrade_request(
-        int fd, std::unordered_map<std::string, std::string> const& header_fields) const noexcept
-{
-    if (!validate_header_fields(header_fields)) {
-        SPDLOG_ERROR("header fields validation failed");
-        return false;
-    }
-
-    auto itr = header_fields.find("sec-websocket-key");
-    assert(itr != header_fields.end());
-
-    if (!send_websocket_accept(fd, itr->second)) {
-        SPDLOG_ERROR("failed to send websocket accept");
-        return false;
-    } else {
-        SPDLOG_INFO("response sent");
-    }
-
-
-    return true;
-}
-
-
-bool
-tcp_echo_server::parse_http_request(int fd, std::string const& req) const noexcept
+tcp_echo_server::on_http_request(int fd, std::string const& req) const noexcept
 {
     std::string method;
     std::unordered_map<std::string, std::string> header_fields;
@@ -315,6 +295,30 @@ tcp_echo_server::parse_http_request(int fd, std::string const& req) const noexce
 
     return true;
 }
+
+bool
+tcp_echo_server::on_websocket_upgrade_request(
+        int fd, std::unordered_map<std::string, std::string> const& header_fields) const noexcept
+{
+    if (!validate_header_fields(header_fields)) {
+        SPDLOG_ERROR("header fields validation failed");
+        return false;
+    }
+
+    auto itr = header_fields.find("sec-websocket-key");
+    assert(itr != header_fields.end());
+
+    if (!send_websocket_accept(fd, itr->second)) {
+        SPDLOG_ERROR("failed to send websocket accept");
+        return false;
+    } else {
+        SPDLOG_INFO("response sent");
+    }
+
+
+    return true;
+}
+
 
 bool
 tcp_echo_server::validate_request_method_uri_and_version(
