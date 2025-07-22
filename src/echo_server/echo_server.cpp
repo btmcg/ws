@@ -215,11 +215,13 @@ echo_server::on_incoming_data(connection& conn) noexcept
 {
     char buf[IncomingBufferSizeBytes];
 
-    ssize_t const bytes_recvd = ::recv(conn.sockfd, &buf, sizeof(buf), 0);
+    ssize_t const bytes_recvd = ::recv(conn.sockfd, conn.buf.write_ptr(), sizeof(buf), 0);
+    // ssize_t const bytes_recvd = ::recv(conn.sockfd, &buf, sizeof(buf), 0);
     if (bytes_recvd == -1) {
         SPDLOG_CRITICAL("error: epoll_ctl (EPOLL_CTL_ADD): {} {}", std::strerror(errno), errno);
         return false;
     }
+    conn.buf.bytes_written(bytes_recvd);
 
     // client disconnected
     if (bytes_recvd == 0) {
@@ -239,11 +241,15 @@ echo_server::on_incoming_data(connection& conn) noexcept
         return true;
     }
 
-    std::string str(buf, static_cast<std::size_t>(bytes_recvd));
-    SPDLOG_DEBUG("{}", str);
+    std::string_view http_req(
+            reinterpret_cast<char const*>(conn.buf.read_ptr()), conn.buf.bytes_unread());
+    SPDLOG_DEBUG("{}", http_req);
 
-    if (str.starts_with("GET")) {
-        if (!on_http_request(conn, str)) {
+    // std::string str(buf, static_cast<std::size_t>(bytes_recvd));
+    // SPDLOG_DEBUG("{}", str);
+
+    if (http_req.starts_with("GET")) {
+        if (!on_http_request(conn, http_req)) {
             SPDLOG_ERROR("on_http_request failed");
             return false;
         }
@@ -264,8 +270,10 @@ echo_server::on_incoming_data(connection& conn) noexcept
 }
 
 bool
-echo_server::on_http_request(connection& conn, std::string const& req) const noexcept
+echo_server::on_http_request(connection& conn, std::string_view req) const noexcept
 {
+    conn.conn_state = ConnectionState::Http;
+
     std::string method;
     std::unordered_map<std::string, std::string> header_fields;
 
@@ -288,8 +296,9 @@ echo_server::on_http_request(connection& conn, std::string const& req) const noe
             break;
         }
 
-        std::string header_key = req.substr(pos, colon_pos - pos);
-        std::string header_val = req.substr(colon_pos + 1, newline_pos - colon_pos - 1);
+        std::string header_key = std::string(req.substr(pos, colon_pos - pos));
+        std::string header_val
+                = std::string(req.substr(colon_pos + 1, newline_pos - colon_pos - 1));
 
         trim(header_key);
         trim(header_val);

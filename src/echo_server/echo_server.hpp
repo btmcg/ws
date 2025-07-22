@@ -34,7 +34,7 @@ private:
     bool on_incoming_data(connection&) noexcept;
 
     /// Called on http request
-    bool on_http_request(connection&, std::string const&) const noexcept;
+    bool on_http_request(connection&, std::string_view) const noexcept;
 
     /// Called when a websocket upgrade request detected
     bool on_websocket_upgrade_request(connection&,
