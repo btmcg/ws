@@ -213,17 +213,16 @@ echo_server::on_incoming_connection() noexcept
 bool
 echo_server::on_incoming_data(connection& conn) noexcept
 {
-    ssize_t const bytes_recvd
+    ssize_t const nbytes
             = ::recv(conn.sockfd, conn.buf.write_ptr(), conn.buf.bytes_left(), /*flags=*/0);
-    // ssize_t const bytes_recvd = ::recv(conn.sockfd, &buf, sizeof(buf), 0);
-    if (bytes_recvd == -1) {
-        SPDLOG_CRITICAL("error: epoll_ctl (EPOLL_CTL_ADD): {} {}", std::strerror(errno), errno);
+    if (nbytes == -1) {
+        SPDLOG_CRITICAL("error: recv: {} {}", std::strerror(errno), errno);
         return false;
     }
-    conn.buf.bytes_written(bytes_recvd);
+    conn.buf.bytes_written(nbytes);
 
     // client disconnected
-    if (bytes_recvd == 0) {
+    if (nbytes == 0) {
         SPDLOG_INFO("client on fd {} disconnected", conn.sockfd);
 
         epoll_event event{};
@@ -240,38 +239,34 @@ echo_server::on_incoming_data(connection& conn) noexcept
         return true;
     }
 
-    std::string_view http_req(
-            reinterpret_cast<char const*>(conn.buf.read_ptr()), conn.buf.bytes_unread());
-    SPDLOG_DEBUG("{}", http_req);
-
-    // std::string str(buf, static_cast<std::size_t>(bytes_recvd));
-    // SPDLOG_DEBUG("{}", str);
-
-    if (http_req.starts_with("GET")) {
-        if (!on_http_request(conn, http_req)) {
-            SPDLOG_ERROR("on_http_request failed");
-            return false;
+    if (conn.conn_state == ConnectionState::WebSocket) {
+        if (!on_websocket_frame(conn)) {
+            SPDLOG_ERROR("on_websocket_frame returned false");
         }
     } else {
-        // TODO
+        if (!on_http_request(conn)) {
+            SPDLOG_ERROR("on_http_request returned false");
+        }
     }
-
-    // echo
-    // ::ssize_t const bytes_sent = ::send(fd, &buf, static_cast<std::size_t>(bytes_recvd), 0);
-    // if (bytes_sent == -1) {
-    //     SPDLOG_CRITICAL("error: send: {} {}", std::strerror(errno), errno);
-    //     return false;
-    // }
-
-    // buf[bytes_recvd - 1] = '\0'; // NOLINT
-    // SPDLOG_INFO("[on_incoming_data] fd={}, buf={}\n", fd, buf);
     return true;
 }
 
 bool
-echo_server::on_http_request(connection& conn, std::string_view req) const noexcept
+echo_server::on_http_request(connection& conn) const noexcept
 {
     conn.conn_state = ConnectionState::Http;
+    std::string_view req(
+            reinterpret_cast<char const*>(conn.buf.read_ptr()), conn.buf.bytes_unread());
+    SPDLOG_DEBUG("{}", req);
+    conn.buf.bytes_read(conn.buf.bytes_unread());
+
+    if (req.starts_with("GET")) {
+        SPDLOG_DEBUG("on_http_request: GET");
+    } else {
+        // TODO
+        SPDLOG_CRITICAL("did not receive GET request");
+        std::abort();
+    }
 
     std::string method;
     std::unordered_map<std::string, std::string> header_fields;
@@ -315,6 +310,16 @@ echo_server::on_http_request(connection& conn, std::string_view req) const noexc
         // TODO
     }
 
+    // echo
+    // ::ssize_t const bytes_sent = ::send(fd, &buf, static_cast<std::size_t>(bytes_recvd), 0);
+    // if (bytes_sent == -1) {
+    //     SPDLOG_CRITICAL("error: send: {} {}", std::strerror(errno), errno);
+    //     return false;
+    // }
+
+    // buf[bytes_recvd - 1] = '\0'; // NOLINT
+    // SPDLOG_INFO("[on_incoming_data] fd={}, buf={}\n", fd, buf);
+
     return true;
 }
 
@@ -338,6 +343,13 @@ echo_server::on_websocket_upgrade_request(connection& conn,
     }
 
 
+    return true;
+}
+
+bool
+echo_server::on_websocket_frame(connection& conn) noexcept
+{
+    SPDLOG_DEBUG("on_websocket_frame: bytes_unread={}", conn.buf.bytes_unread());
     return true;
 }
 

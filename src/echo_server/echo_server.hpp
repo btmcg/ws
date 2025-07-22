@@ -34,11 +34,15 @@ private:
     bool on_incoming_data(connection&) noexcept;
 
     /// Called on http request
-    bool on_http_request(connection&, std::string_view) const noexcept;
+    bool on_http_request(connection&) const noexcept;
 
     /// Called when a websocket upgrade request detected
     bool on_websocket_upgrade_request(connection&,
             std::unordered_map<std::string, std::string> const& header_fields) const noexcept;
+
+    /// Called when receiving from a websocket that is already connected
+    /// \return \c false on error
+    bool on_websocket_frame(connection&) noexcept;
 
 private:
     bool validate_request_method_uri_and_version(std::string const&) const noexcept;
