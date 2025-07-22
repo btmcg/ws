@@ -25,12 +25,12 @@ echo_server_files = files(
 )
 
 
-# find spdlog dependency
+# get spdlog from wrap
 add_global_arguments([
   '-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE',
   '-DSPDLOG_USE_STD_FORMAT'
   ], language : 'cpp')
-spdlog_dep = dependency('spdlog', required: true)
+spdlog_dep = dependency('spdlog', fallback: ['spdlog', 'spdlog_dep'])
 
 # find Catch2 dependency
 catch2_dep = dependency('catch2-with-main', required: false)
