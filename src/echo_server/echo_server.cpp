@@ -19,6 +19,7 @@
 #include <cassert>
 #include <cstdlib> // std::abort
 #include <cstring> // std::memset, std::strerror
+#include <print>
 #include <unordered_map>
 #include <vector>
 
@@ -31,6 +32,37 @@ namespace {
     static constexpr std::string_view MagicGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 } // namespace
 
+
+void
+print_hexdump(void const* data, std::size_t size)
+{
+    auto const* bytes = static_cast<std::uint8_t const*>(data);
+
+    for (std::size_t i = 0; i < size; i += 16) {
+        std::print("{:08X}  ", static_cast<unsigned>(i)); // Offset
+
+        // Hex bytes
+        for (std::size_t j = 0; j < 16; ++j) {
+            if (i + j < size) {
+                std::print("{:02X} ", bytes[i + j]);
+            } else {
+                std::print("   "); // Padding
+            }
+            if (j == 7)
+                std::print(" "); // Extra space in middle
+        }
+
+        std::print(" |");
+
+        // ASCII view
+        for (std::size_t j = 0; j < 16 && i + j < size; ++j) {
+            unsigned char c = bytes[i + j];
+            std::print("{}", std::isprint(c) ? static_cast<char>(c) : '.');
+        }
+
+        std::print("|\n");
+    }
+}
 
 echo_server::echo_server(int port)
         : port_(port)
@@ -349,26 +381,6 @@ echo_server::on_websocket_upgrade_request(connection& conn,
 }
 
 bool
-echo_server::on_websocket_frame(connection& conn) noexcept
-{
-    SPDLOG_DEBUG("on_websocket_frame: bytes_unread={}", conn.buf.bytes_unread());
-    // if (conn.buf.bytes_unread() < sizeof(websocket_frame)) {
-    //     SPDLOG_DEBUG("on_websocket_frame: bytes_unread={} < sizeof(websocket_frame)={}",
-    //             conn.buf.bytes_unread(), sizeof(websocket_frame));
-    //     // don't have enough for a full frame, do nothing
-    //     return true;
-    // }
-
-    auto frame = reinterpret_cast<websocket_frame const*>(conn.buf.read_ptr());
-
-    SPDLOG_DEBUG("fin={}, rsv1={}, rsv2={}, rsv3={}, op_code={}", frame->fin, frame->rsv1,
-            frame->rsv2, frame->rsv3, frame->op_code);
-
-    return true;
-}
-
-
-bool
 echo_server::validate_request_method_uri_and_version(
         std::string const& method_and_ver) const noexcept
 {
@@ -517,5 +529,32 @@ echo_server::send_websocket_accept(
 
     return true;
 }
+
+bool
+echo_server::on_websocket_frame(connection& conn) noexcept
+{
+    SPDLOG_DEBUG("on_websocket_frame: bytes_unread={}", conn.buf.bytes_unread());
+
+    // make sure we can safely read the payload length
+    if (conn.buf.bytes_unread() < MinFrameBytesNeeded) {
+        SPDLOG_DEBUG("on_websocket_frame: bytes_unread={} < MinFrameBytesNeeded ({})",
+                conn.buf.bytes_unread(), MinFrameBytesNeeded);
+        // don't have enough for a full frame, do nothing
+        return true;
+    }
+
+    auto frame = reinterpret_cast<websocket_frame const*>(conn.buf.read_ptr());
+
+    std::uint64_t payload_len = frame->payload_len();
+    SPDLOG_DEBUG("payload_len={}", payload_len);
+    SPDLOG_DEBUG("fin={}, rsv1={}, rsv2={}, rsv3={}, op_code={}, masked={}, payload_len={}",
+            frame->fin(), frame->rsv1(), frame->rsv2(), frame->rsv3(), frame->op_code(),
+            frame->masked(), payload_len);
+
+    print_hexdump(reinterpret_cast<void const*>(conn.buf.read_ptr()), conn.buf.bytes_unread());
+
+    return true;
+}
+
 
 } // namespace ws
