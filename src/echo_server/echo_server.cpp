@@ -553,7 +553,7 @@ echo_server::on_websocket_frame(connection& conn) noexcept
             break; // Continue processing
     }
 
-    SPDLOG_DEBUG("Parsed frame: fin={}, op_code={}, masked={}, payload_len={}, header_size={}",
+    SPDLOG_DEBUG("parsed frame: fin={}, op_code={}, masked={}, payload_len={}, header_size={}",
             frame.fin(), frame.op_code(), frame.masked(), frame.payload_len(), frame.header_size());
 
 
