@@ -1,8 +1,8 @@
 #pragma once
 
 #include "connection.hpp"
-#include <algorithm> // std::ranges::copy
 #include <format>
+#include <ranges> // std::ranges::copy
 #include <string_view>
 
 namespace ws {
