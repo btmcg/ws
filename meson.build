@@ -24,13 +24,20 @@ echo_server_files = files(
   'src/echo_server/main.cpp',
 )
 
-
-# get spdlog from wrap
+# Use spdlog as a subproject with consistent configuration
 add_global_arguments([
   '-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE',
   '-DSPDLOG_USE_STD_FORMAT'
   ], language : 'cpp')
-spdlog_dep = dependency('spdlog', fallback: ['spdlog', 'spdlog_dep'])
+
+# Force using spdlog subproject instead of system version
+spdlog_proj = subproject('spdlog', default_options: [
+    'tests=disabled',
+    'example=disabled', 
+    'bench=disabled',
+    'install=disabled'
+])
+spdlog_dep = spdlog_proj.get_variable('spdlog_dep')
 
 # find Catch2 dependency
 catch2_dep = dependency('catch2-with-main', required: false)
@@ -65,7 +72,6 @@ executable('echo_server',
   link_with : ws_lib,
   dependencies : [spdlog_dep],
   install : true)
-
 
 # Tests configuration
 if catch2_dep.found()
