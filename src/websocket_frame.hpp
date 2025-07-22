@@ -5,7 +5,7 @@
 
 namespace ws {
 
-enum class op_code : std::uint8_t
+enum class OpCode : std::uint8_t
 {
     Continuation = 0x0,
     Text = 0x1,
@@ -21,7 +21,7 @@ struct websocket_frame
     std::uint8_t rsv1 : 1;
     std::uint8_t rsv2 : 1;
     std::uint8_t rsv3 : 1;
-    op_code op : 4;
+    OpCode op_code : 4;
 
     std::uint8_t mask : 1;
     std::uint8_t payload_len : 7;
