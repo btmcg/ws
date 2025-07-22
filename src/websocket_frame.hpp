@@ -1,12 +1,9 @@
 #pragma once
 
-#include <bit>
 #include <cstdint>
-#include <cstring>
 #include <optional>
 #include <span>
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace ws {
@@ -49,7 +46,7 @@ struct basic_websocket_header
     std::uint8_t payload_len_indicator() const noexcept;
 } __attribute__((packed));
 
-/// parsed WebSocket frame information
+/// Parsed WebSocket frame information
 class websocket_frame
 {
 private:
@@ -63,6 +60,7 @@ private:
     std::uint8_t masking_key_[4] = {0};
     std::size_t header_size_ = 0;
     bool valid_ = false;
+    std::vector<std::uint8_t> payload_data_; // store the actual payload data
 
 public:
     websocket_frame() = default;
@@ -85,25 +83,22 @@ public:
     /// \return ParseResult indicating success, need more data, or invalid frame
     ParseResult parse_from_buffer(std::uint8_t const*, std::size_t) noexcept;
 
-    /// Get payload data from buffer (assumes frame was successfully parsed)
-    /// \param buffer_start Start of the buffer used in parse_from_buffer
-    /// \return Span pointing to payload data
-    std::span<std::uint8_t const> get_payload_data(std::uint8_t const* buffer_start) const noexcept;
+    /// Get payload data (automatically unmasked if necessary)
+    /// @return Span pointing to payload data
+    std::span<std::uint8_t const> get_payload_data() const noexcept;
 
-    /// Unmask payload data if frame is masked
-    /// \param masked_payload The masked payload data
-    /// \return Unmasked payload data
-    std::vector<std::uint8_t> unmask_payload(std::span<std::uint8_t const> masked_payload) const;
+    /// Get raw payload data (still masked if frame was masked)
+    /// @return Span pointing to raw payload data
+    std::span<std::uint8_t const> get_raw_payload_data() const noexcept;
 
     /// Get text payload as string (for text frames)
-    /// \param buffer_start Start of the buffer used in parse_from_buffer
-    /// \return String view of the text payload (unmasked if necessary)
-    std::optional<std::string> get_text_payload(std::uint8_t const* buffer_start) const;
+    /// @return String of the text payload (automatically unmasked)
+    std::optional<std::string> get_text_payload() const;
 
-    /// Validate frame according to RFC 6455
+    /// validate frame according to RFC 6455
     bool is_valid_frame() const noexcept;
 
-    /// Reset frame to initial state
+    /// reset frame to initial state
     void reset() noexcept;
 
 private:

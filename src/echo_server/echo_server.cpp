@@ -542,73 +542,66 @@ echo_server::on_websocket_frame(connection& conn) noexcept
 
     switch (result) {
         case ParseResult::NeedMoreData:
-            SPDLOG_DEBUG("need more data for complete frame");
-            return true;
+            SPDLOG_DEBUG("Need more data for complete frame");
+            return true; // Wait for more data
 
         case ParseResult::InvalidFrame:
-            SPDLOG_ERROR("invalid WebSocket frame received");
+            SPDLOG_ERROR("Invalid WebSocket frame received");
             return false; // Invalid frame - close connection
 
         case ParseResult::Success:
             break; // Continue processing
     }
 
-    SPDLOG_DEBUG("parsed frame: fin={}, op_code={}, masked={}, payload_len={}, header_size={}",
+    SPDLOG_DEBUG("Parsed frame: fin={}, op_code={}, masked={}, payload_len={}, header_size={}",
             frame.fin(), frame.op_code(), frame.masked(), frame.payload_len(), frame.header_size());
 
-    // Handle different frame types
+
     switch (frame.op_code()) {
         case OpCode::Text: {
-            if (auto text_payload = frame.get_text_payload(conn.buf.read_ptr())) {
-                SPDLOG_INFO("Received text message: '{}'", *text_payload);
+            if (auto text_payload = frame.get_text_payload()) {
+                SPDLOG_INFO("received text message: '{}'", *text_payload);
                 // Echo the message back
                 // send_text_frame(conn, *text_payload);
             } else {
-                SPDLOG_ERROR("Failed to extract text payload");
+                SPDLOG_ERROR("failed to extract text payload");
             }
             break;
         }
 
-            // case OpCode::Binary: {
-            //     auto payload_data = frame.get_payload_data(conn.buf.read_ptr());
-            //     if (frame.masked()) {
-            //         auto unmasked = frame.unmask_payload(payload_data);
-            //         SPDLOG_INFO("Received binary message: {} bytes", unmasked.size());
-            //         // Process unmasked binary data
-            //     } else {
-            //         SPDLOG_INFO("Received unmasked binary message: {} bytes",
-            //         payload_data.size());
-            //         // Process binary data directly
-            //     }
-            //     break;
-            // }
+        case OpCode::Binary: {
+            auto payload_data = frame.get_payload_data();
+            SPDLOG_INFO("received binary message: {} bytes", payload_data.size());
+            // Process binary data (already unmasked)
+            break;
+        }
 
-            // case OpCode::Close:
-            //     SPDLOG_INFO("Received close frame");
-            //     conn.conn_state = ConnectionState::WebSocketClosing;
-            //     // Should send close frame back and close connection
-            //     break;
+        case OpCode::Close:
+            SPDLOG_INFO("received close frame");
+            conn.conn_state = ConnectionState::WebSocketClosing;
+            // Should send close frame back and close connection
+            break;
 
-            // case OpCode::Ping: {
-            //     SPDLOG_DEBUG("Received ping frame");
-            //     // Should send pong frame back
-            //     // auto payload_data = frame.get_payload_data(conn.buf.read_ptr());
-            //     // send_pong_frame(conn, payload_data);
-            //     break;
-            // }
+        case OpCode::Ping: {
+            SPDLOG_DEBUG("received ping frame");
+            // Should send pong frame back with same payload
+            // auto payload_data = frame.get_payload_data();
+            // send_pong_frame(conn, payload_data);
+            break;
+        }
 
-            // case OpCode::Pong:
-            //     SPDLOG_DEBUG("Received pong frame");
-            //     // Handle pong (update keepalive, etc.)
-            //     break;
+        case OpCode::Pong:
+            SPDLOG_DEBUG("received pong frame");
+            // Handle pong (update keepalive, etc.)
+            break;
 
         default:
-            SPDLOG_WARN("Received frame with unsupported opcode: {}",
+            SPDLOG_WARN("received frame with unsupported opcode: {}",
                     static_cast<int>(frame.op_code()));
             break;
     }
 
-    // Consume the frame from the buffer
+    // consume the frame from the buffer
     conn.buf.bytes_read(frame.total_size());
 
     return true;
