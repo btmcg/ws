@@ -61,7 +61,7 @@ struct std::formatter<ws::ConnectionState>
     auto
     format(ws::ConnectionState s, std::format_context& ctx) const
     {
-        return std::ranges::copy(ws::to_string(s), ctx.out()).out;
+        return std::format_to(ctx.out(), "{}", ws::to_string(s));
     }
 };
 
