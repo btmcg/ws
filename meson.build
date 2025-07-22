@@ -24,13 +24,11 @@ echo_server_files = files(
   'src/echo_server/main.cpp',
 )
 
-# Use spdlog as a subproject with consistent configuration
+# use spdlog from subproject
 add_global_arguments([
   '-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE',
   '-DSPDLOG_USE_STD_FORMAT'
   ], language : 'cpp')
-
-# Force using spdlog subproject instead of system version
 spdlog_proj = subproject('spdlog', default_options: [
     'tests=disabled',
     'example=disabled', 
@@ -39,19 +37,11 @@ spdlog_proj = subproject('spdlog', default_options: [
 ])
 spdlog_dep = spdlog_proj.get_variable('spdlog_dep')
 
-# find Catch2 dependency
-catch2_dep = dependency('catch2-with-main', required: false)
-if not catch2_dep.found()
-  catch2_dep = dependency('catch2', required: false)
-endif
-
-# if Catch2 is not found via pkg-config, try to find it as a subproject
-if not catch2_dep.found()
-  catch2_proj = subproject('catch2', required: false)
-  if catch2_proj.found()
-    catch2_dep = catch2_proj.get_variable('catch2_with_main_dep')
-  endif
-endif
+# use catch2 from subproject
+catch2_proj = subproject('catch2', default_options: [
+    'tests=disabled'
+])
+catch2_dep = catch2_proj.get_variable('catch2_with_main_dep')
 
 # define the main executable
 executable('ws',
@@ -107,12 +97,7 @@ if catch2_dep.found()
   test('all_tests', all_test_exe)
 
 else
-  message('Catch2 not found, tests will not be built')
-  message('To install Catch2:')
-  message('  - Ubuntu/Debian: sudo apt install catch2')
-  message('  - Fedora: sudo dnf install catch2-devel')
-  message('  - macOS: brew install catch2')
-  message('  - Or use Meson wrap: meson wrap install catch2')
+  warning('Catch2 not found, tests will not be built')
 endif
 
 # Add option to enable/disable tests
