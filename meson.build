@@ -24,22 +24,24 @@ echo_server_files = files(
   'src/echo_server/main.cpp',
 )
 
-# use spdlog from subproject
+# Use spdlog as a subproject with consistent configuration
 add_global_arguments([
   '-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE',
   '-DSPDLOG_USE_STD_FORMAT'
   ], language : 'cpp')
+
+# Force using spdlog subproject instead of system version
 spdlog_proj = subproject('spdlog', default_options: [
     'tests=disabled',
-    'example=disabled', 
-    'bench=disabled',
-    'install=disabled'
+    'example=false', 
+    'bench=false',
+    'install=false'
 ])
 spdlog_dep = spdlog_proj.get_variable('spdlog_dep')
 
-# use catch2 from subproject
+# Use Catch2 from subproject
 catch2_proj = subproject('catch2', default_options: [
-    'tests=disabled'
+    'tests=false'
 ])
 catch2_dep = catch2_proj.get_variable('catch2_with_main_dep')
 

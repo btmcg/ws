@@ -39,3 +39,8 @@
 
 # debug information files
 *.dwo
+
+subprojects/packagecache
+
+subprojects/Catch2-3.8.1
+subprojects/spdlog-1.15.3
