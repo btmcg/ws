@@ -26,7 +26,10 @@ echo_server_files = files(
 
 
 # find spdlog dependency
-add_global_arguments('-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE', language : 'cpp')
+add_global_arguments([
+  '-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE',
+  '-DSPDLOG_USE_STD_FORMAT'
+  ], language : 'cpp')
 spdlog_dep = dependency('spdlog', required: true)
 
 # find Catch2 dependency
