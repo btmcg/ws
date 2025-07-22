@@ -31,13 +31,13 @@ private:
 
     /// Called on incoming data
     /// \return \c false on error
-    bool on_incoming_data(int fd) noexcept;
+    bool on_incoming_data(connection&) noexcept;
 
     /// Called on http request
-    bool on_http_request(int fd, std::string const&) const noexcept;
+    bool on_http_request(connection&, std::string const&) const noexcept;
 
     /// Called when a websocket upgrade request detected
-    bool on_websocket_upgrade_request(int fd,
+    bool on_websocket_upgrade_request(connection&,
             std::unordered_map<std::string, std::string> const& header_fields) const noexcept;
 
 private:
@@ -45,7 +45,7 @@ private:
     bool validate_header_fields(
             std::unordered_map<std::string, std::string> const& header_fields) const noexcept;
     std::string generate_accept_key(std::string const&) const noexcept;
-    bool send_websocket_accept(int fd, std::string const& sec_websocket_key) const noexcept;
+    bool send_websocket_accept(connection&, std::string const& sec_websocket_key) const noexcept;
 
 private:
     static constexpr std::uint16_t ListenPort = 8000; ///< default listening port

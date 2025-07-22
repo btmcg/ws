@@ -1,6 +1,6 @@
 #include "echo_server.hpp"
 #include "../base64_codec.hpp"
-// #include "../connection_fmt.hpp"
+#include "../connection_fmt.hpp"
 #include "../sha1.hpp"
 #include "../str_utils.hpp"
 #include "../websocket_frame.hpp"
@@ -20,36 +20,6 @@
 #include <unordered_map>
 #include <vector>
 
-
-// Add this right after your includes in echo_server.cpp, before the namespace ws
-template <>
-struct std::formatter<ws::ConnectionState>
-{
-    constexpr auto
-    parse(std::format_parse_context& ctx)
-    {
-        return ctx.begin();
-    }
-
-    auto
-    format(ws::ConnectionState s, std::format_context& ctx) const
-    {
-        const char* str = [s]() {
-            switch (s) {
-                case ws::ConnectionState::Http:
-                    return "Http";
-                case ws::ConnectionState::WebSocket:
-                    return "WebSocket";
-                case ws::ConnectionState::WebSocketClosing:
-                    return "WebSocketClosing";
-                case ws::ConnectionState::Undefined:
-                    return "Undefined";
-            }
-            return "???";
-        }();
-        return std::format_to(ctx.out(), "{}", str);
-    }
-};
 
 namespace ws {
 namespace {
@@ -178,7 +148,14 @@ echo_server::run()
                     return false;
                 }
             } else {
-                bool const status = on_incoming_data(events[i].data.fd); // NOLINT
+                int fd = events[i].data.fd;
+                auto itr = clients_.find(fd);
+                if (itr == clients_.end()) {
+                    SPDLOG_CRITICAL("failed to find client entry for fd={}", fd);
+                    std::abort();
+                }
+
+                bool const status = on_incoming_data(itr->second);
                 if (!status) {
                     return false;
                 }
@@ -206,24 +183,22 @@ echo_server::on_incoming_connection() noexcept
     }
 
     connection conn{};
+    conn.conn_state = ConnectionState::TcpConnected;
+    conn.sockfd = accepted_sock;
 
     auto const* sin = reinterpret_cast<sockaddr_in const*>(&their_addr);
-    conn.port = sin->sin_port;
-
     char const* ip = nullptr;
     if (ip = ::inet_ntop(AF_INET, &(sin->sin_addr), conn.ip, sizeof(conn.ip)); ip == nullptr) {
         SPDLOG_CRITICAL("inet_ntop: {}: {}", std::strerror(errno), errno);
         std::abort();
     }
-
+    conn.port = sin->sin_port;
 
     // successfully connected. create a client entry, keyed by the
     // socket fd
 
-
     clients_.emplace(accepted_sock, conn);
-    SPDLOG_INFO("client [{}:{}] connected", accepted_sock, conn.conn_state);
-    // SPDLOG_INFO("client [{}:{}] connected", accepted_sock, conn);
+    SPDLOG_INFO("client connected: {}", conn);
 
     // add the new fd to epoll
     epoll_event event{};
@@ -238,11 +213,11 @@ echo_server::on_incoming_connection() noexcept
 }
 
 bool
-echo_server::on_incoming_data(int fd) noexcept
+echo_server::on_incoming_data(connection& conn) noexcept
 {
     char buf[IncomingBufferSizeBytes];
 
-    ssize_t const bytes_recvd = ::recv(fd, &buf, sizeof(buf), 0);
+    ssize_t const bytes_recvd = ::recv(conn.sockfd, &buf, sizeof(buf), 0);
     if (bytes_recvd == -1) {
         SPDLOG_CRITICAL("error: epoll_ctl (EPOLL_CTL_ADD): {} {}", std::strerror(errno), errno);
         return false;
@@ -250,24 +225,19 @@ echo_server::on_incoming_data(int fd) noexcept
 
     // client disconnected
     if (bytes_recvd == 0) {
-        SPDLOG_INFO("client on fd {} disconnected", fd);
-
-        auto itr = clients_.find(fd);
-        if (itr == clients_.end()) {
-            SPDLOG_CRITICAL("failed to find client entry for fd={}", fd);
-            std::abort();
-        }
-        clients_.erase(itr);
+        SPDLOG_INFO("client on fd {} disconnected", conn.sockfd);
 
         epoll_event event{};
         event.events = (EPOLLIN | EPOLLET);
-        event.data.fd = fd;
-        if (int rv = ::epoll_ctl(epollfd_, EPOLL_CTL_DEL, fd, &event); rv == -1) {
+        event.data.fd = conn.sockfd;
+        if (int rv = ::epoll_ctl(epollfd_, EPOLL_CTL_DEL, conn.sockfd, &event); rv == -1) {
             SPDLOG_CRITICAL("error: epoll_ctl (EPOLL_CTL_DEL): {} {}", std::strerror(errno), errno);
             return false;
         }
 
-        assert(::close(fd) != -1);
+        assert(::close(conn.sockfd) != -1);
+        clients_.erase(conn.sockfd);
+
         return true;
     }
 
@@ -275,7 +245,7 @@ echo_server::on_incoming_data(int fd) noexcept
     SPDLOG_DEBUG("{}", str);
 
     if (str.starts_with("GET")) {
-        if (!on_http_request(fd, str)) {
+        if (!on_http_request(conn, str)) {
             SPDLOG_ERROR("on_http_request failed");
             return false;
         }
@@ -296,7 +266,7 @@ echo_server::on_incoming_data(int fd) noexcept
 }
 
 bool
-echo_server::on_http_request(int fd, std::string const& req) const noexcept
+echo_server::on_http_request(connection& conn, std::string const& req) const noexcept
 {
     std::string method;
     std::unordered_map<std::string, std::string> header_fields;
@@ -331,7 +301,7 @@ echo_server::on_http_request(int fd, std::string const& req) const noexcept
     }
 
     if (header_fields.contains("upgrade")) {
-        if (!on_websocket_upgrade_request(fd, header_fields)) {
+        if (!on_websocket_upgrade_request(conn, header_fields)) {
             SPDLOG_ERROR("invalid websocket upgrade request");
             return false;
         }
@@ -343,8 +313,8 @@ echo_server::on_http_request(int fd, std::string const& req) const noexcept
 }
 
 bool
-echo_server::on_websocket_upgrade_request(
-        int fd, std::unordered_map<std::string, std::string> const& header_fields) const noexcept
+echo_server::on_websocket_upgrade_request(connection& conn,
+        std::unordered_map<std::string, std::string> const& header_fields) const noexcept
 {
     if (!validate_header_fields(header_fields)) {
         SPDLOG_ERROR("header fields validation failed");
@@ -354,7 +324,7 @@ echo_server::on_websocket_upgrade_request(
     auto itr = header_fields.find("sec-websocket-key");
     assert(itr != header_fields.end());
 
-    if (!send_websocket_accept(fd, itr->second)) {
+    if (!send_websocket_accept(conn, itr->second)) {
         SPDLOG_ERROR("failed to send websocket accept");
         return false;
     } else {
@@ -494,7 +464,7 @@ echo_server::generate_accept_key(std::string const& key) const noexcept
 
 bool
 echo_server::send_websocket_accept(
-        int client_fd, std::string const& sec_websocket_key) const noexcept
+        connection& conn, std::string const& sec_websocket_key) const noexcept
 {
     std::string accept_key = generate_accept_key(sec_websocket_key);
     std::string response = "HTTP/1.1 101 Switching Protocols\r\n"
@@ -505,7 +475,8 @@ echo_server::send_websocket_accept(
     SPDLOG_DEBUG("response=\n{}", response);
 
     SPDLOG_DEBUG("sending {} bytes", response.size());
-    ssize_t nbytes = ::send(client_fd, response.c_str(), static_cast<ssize_t>(response.size()), 0);
+    ssize_t nbytes
+            = ::send(conn.sockfd, response.c_str(), static_cast<ssize_t>(response.size()), 0);
     if (nbytes == -1) {
         SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
         return false;
