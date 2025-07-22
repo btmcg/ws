@@ -173,20 +173,24 @@ echo_server::on_incoming_connection() noexcept
         return false;
     }
 
+    connection conn{};
+
     auto const* sin = reinterpret_cast<sockaddr_in const*>(&their_addr);
-    char ip_storage[INET_ADDRSTRLEN];
+    conn.port = sin->sin_port;
+
     char const* ip = nullptr;
-    if (ip = ::inet_ntop(AF_INET, &(sin->sin_addr), ip_storage, INET_ADDRSTRLEN); ip == nullptr) {
+    if (ip = ::inet_ntop(AF_INET, &(sin->sin_addr), conn.ip, sizeof(conn.ip)); ip == nullptr) {
         SPDLOG_CRITICAL("inet_ntop: {}: {}", std::strerror(errno), errno);
         std::abort();
     }
 
-    SPDLOG_INFO("client [{}:{}] connected on socket fd={}", ip, sin->sin_port, accepted_sock);
 
     // successfully connected. create a client entry, keyed by the
     // socket fd
 
-    clients_.emplace(accepted_sock, connection{});
+
+    clients_.emplace(accepted_sock, conn);
+    SPDLOG_INFO("client [{}:{}] connected", accepted_sock, conn);
 
     // add the new fd to epoll
     epoll_event event{};
