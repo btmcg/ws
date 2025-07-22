@@ -191,8 +191,8 @@ echo_server::on_incoming_connection() noexcept
 
 
     clients_.emplace(accepted_sock, conn);
-    // SPDLOG_INFO("client [{}:{}] connected", accepted_sock, conn);
     SPDLOG_INFO("client [{}:{}] connected", accepted_sock, conn.conn_state);
+    // SPDLOG_INFO("client [{}:{}] connected", accepted_sock, conn);
 
     // add the new fd to epoll
     epoll_event event{};
