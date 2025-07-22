@@ -26,7 +26,6 @@ namespace {
     static constexpr int ListenBacklog = 10;     ///< max num of pending connections
     static constexpr int EpollMaxEvents = 20;    ///< max num of pending epoll events
     static constexpr int EpollTimeoutMsecs = 10; ///< num of milliseconds to block on epoll_wait
-    static constexpr int IncomingBufferSizeBytes = 4096; ///< size of recv buffer
     static constexpr std::string_view MagicGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 } // namespace
 
@@ -213,9 +212,8 @@ echo_server::on_incoming_connection() noexcept
 bool
 echo_server::on_incoming_data(connection& conn) noexcept
 {
-    char buf[IncomingBufferSizeBytes];
-
-    ssize_t const bytes_recvd = ::recv(conn.sockfd, conn.buf.write_ptr(), sizeof(buf), 0);
+    ssize_t const bytes_recvd
+            = ::recv(conn.sockfd, conn.buf.write_ptr(), conn.buf.bytes_left(), /*flags=*/0);
     // ssize_t const bytes_recvd = ::recv(conn.sockfd, &buf, sizeof(buf), 0);
     if (bytes_recvd == -1) {
         SPDLOG_CRITICAL("error: epoll_ctl (EPOLL_CTL_ADD): {} {}", std::strerror(errno), errno);
@@ -473,6 +471,7 @@ bool
 echo_server::send_websocket_accept(
         connection& conn, std::string const& sec_websocket_key) const noexcept
 {
+    conn.conn_state = ConnectionState::WebSocket;
     std::string accept_key = generate_accept_key(sec_websocket_key);
     std::string response = "HTTP/1.1 101 Switching Protocols\r\n"
                            "Upgrade: websocket\r\n"
