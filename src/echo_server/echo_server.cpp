@@ -1,5 +1,6 @@
 #include "echo_server.hpp"
 #include "../base64_codec.hpp"
+#include "../connection_fmt.hpp"
 #include "../sha1.hpp"
 #include "../str_utils.hpp"
 #include "../websocket_frame.hpp"
