@@ -1,6 +1,6 @@
 #include "echo_server.hpp"
 #include "../base64_codec.hpp"
-#include "../connection_fmt.hpp"
+// #include "../connection_fmt.hpp"
 #include "../sha1.hpp"
 #include "../str_utils.hpp"
 #include "../websocket_frame.hpp"
@@ -19,6 +19,37 @@
 #include <cstring> // std::memset, std::strerror
 #include <unordered_map>
 #include <vector>
+
+
+// Add this right after your includes in echo_server.cpp, before the namespace ws
+template <>
+struct std::formatter<ws::ConnectionState>
+{
+    constexpr auto
+    parse(std::format_parse_context& ctx)
+    {
+        return ctx.begin();
+    }
+
+    auto
+    format(ws::ConnectionState s, std::format_context& ctx) const
+    {
+        const char* str = [s]() {
+            switch (s) {
+                case ws::ConnectionState::Http:
+                    return "Http";
+                case ws::ConnectionState::WebSocket:
+                    return "WebSocket";
+                case ws::ConnectionState::WebSocketClosing:
+                    return "WebSocketClosing";
+                case ws::ConnectionState::Undefined:
+                    return "Undefined";
+            }
+            return "???";
+        }();
+        return std::format_to(ctx.out(), "{}", str);
+    }
+};
 
 namespace ws {
 namespace {
