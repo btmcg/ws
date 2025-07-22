@@ -20,6 +20,7 @@
 #include <cstdlib> // std::abort
 #include <cstring> // std::memset, std::strerror
 #include <print>
+#include <span>
 #include <unordered_map>
 #include <vector>
 
@@ -546,12 +547,36 @@ echo_server::on_websocket_frame(connection& conn) noexcept
     auto frame = reinterpret_cast<websocket_frame const*>(conn.buf.read_ptr());
 
     std::uint64_t payload_len = frame->payload_len();
-    SPDLOG_DEBUG("payload_len={}", payload_len);
     SPDLOG_DEBUG("fin={}, rsv1={}, rsv2={}, rsv3={}, op_code={}, masked={}, payload_len={}",
             frame->fin(), frame->rsv1(), frame->rsv2(), frame->rsv3(), frame->op_code(),
             frame->masked(), payload_len);
 
-    print_hexdump(reinterpret_cast<void const*>(conn.buf.read_ptr()), conn.buf.bytes_unread());
+    if (conn.buf.bytes_unread() < (sizeof(websocket_frame::byte1) + sizeof(websocket_frame::byte2)
+                + sizeof(websocket_frame::masking_key) + payload_len)) {
+        // we don't have enough data to read the full packet
+        SPDLOG_DEBUG(
+                "on_websocket_frame: not enough data for message: bytes_unread={}, payload_len={}",
+                conn.buf.bytes_unread(), payload_len);
+        return true;
+    }
+
+    if (frame->fin() && frame->op_code() == OpCode::Text) {
+        // received one complete message in text
+        conn.buf.bytes_read(sizeof(websocket_frame::byte1) + sizeof(websocket_frame::byte2)
+                + sizeof(websocket_frame::masking_key));
+
+        // note that this is a copy
+        std::vector<std::uint8_t> unmasked_payload
+                = unmask_payload(conn.buf.read_ptr(), payload_len, frame->masking_key);
+        SPDLOG_DEBUG("unmasked_payload.size()={}", unmasked_payload.size());
+
+        std::string_view sv(
+                reinterpret_cast<char const*>(unmasked_payload.data()), unmasked_payload.size());
+        SPDLOG_INFO("{}", sv);
+        conn.buf.bytes_read(payload_len);
+    }
+
+    // print_hexdump(reinterpret_cast<void const*>(conn.buf.read_ptr()), conn.buf.bytes_unread());
 
     return true;
 }

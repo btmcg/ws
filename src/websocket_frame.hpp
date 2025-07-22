@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 #include <vector>
-
 
 namespace ws {
 /// min number of bytes needed to read a frame's payload length
@@ -76,5 +76,19 @@ struct websocket_frame
         return std::byteswap(extended_payload_len_64);
     }
 } __attribute__((packed));
+
+
+inline std::vector<std::uint8_t>
+unmask_payload(
+        std::uint8_t const* masked_data, std::size_t payload_len, std::uint8_t const masking_key[4])
+{
+    std::vector<std::uint8_t> unmasked(payload_len);
+
+    for (std::size_t i = 0; i < payload_len; ++i) {
+        unmasked[i] = masked_data[i] ^ masking_key[i % 4];
+    }
+
+    return unmasked;
+}
 
 } // namespace ws
