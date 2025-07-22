@@ -90,7 +90,7 @@ echo_server::~echo_server() noexcept
     ::close(sockfd_);
     ::close(epollfd_);
 
-    for (auto sock : clients_) {
+    for (auto& [sock, conn] : clients_) {
         ::close(sock);
     }
 }
@@ -125,18 +125,22 @@ echo_server::run()
 
         for (int i = 0; i < num_events; ++i) {
             // Check for flag that we aren't listening for. Not sure if this is necessary.
-            if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)) { // NOLINT
+            if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)) {
                 SPDLOG_ERROR("error: unexpected event on fd {}\n", i);
 
-                auto itr = std::find(clients_.begin(), clients_.end(), events[i].data.fd); // NOLINT
-                assert(itr != clients_.end());
+                auto itr = clients_.find(events[i].data.fd);
+                if (itr == clients_.end()) {
+                    int fd = events[i].data.fd;
+                    SPDLOG_CRITICAL("failed to find client entry for fd={}", fd);
+                    std::abort();
+                }
 
                 clients_.erase(itr);
-                ::close(events[i].data.fd); // NOLINT
+                ::close(events[i].data.fd);
                 continue;
             }
 
-            if (events[i].data.fd == sockfd_) { // NOLINT
+            if (events[i].data.fd == sockfd_) {
                 bool const status = on_incoming_connection();
                 if (!status) {
                     return false;
@@ -179,8 +183,10 @@ echo_server::on_incoming_connection() noexcept
 
     SPDLOG_INFO("client [{}:{}] connected on socket fd={}", ip, sin->sin_port, accepted_sock);
 
-    // Successfully connected. Store the new fd.
-    clients_.emplace_back(accepted_sock);
+    // successfully connected. create a client entry, keyed by the
+    // socket fd
+
+    clients_.emplace(accepted_sock, connection{});
 
     // add the new fd to epoll
     epoll_event event{};
@@ -209,8 +215,11 @@ echo_server::on_incoming_data(int fd) noexcept
     if (bytes_recvd == 0) {
         SPDLOG_INFO("client on fd {} disconnected", fd);
 
-        auto itr = std::find(clients_.begin(), clients_.end(), fd);
-        assert(itr != clients_.end());
+        auto itr = clients_.find(fd);
+        if (itr == clients_.end()) {
+            SPDLOG_CRITICAL("failed to find client entry for fd={}", fd);
+            std::abort();
+        }
         clients_.erase(itr);
 
         epoll_event event{};
@@ -430,19 +439,19 @@ echo_server::validate_header_fields(
 std::string
 echo_server::generate_accept_key(std::string const& key) const noexcept
 {
-    SPDLOG_INFO("key={}", key);
+    SPDLOG_DEBUG("key={}", key);
     std::string const concat = key + std::string(MagicGuid);
-    SPDLOG_INFO("concat={}", concat);
+    SPDLOG_DEBUG("concat={}", concat);
 
     // Get the raw SHA-1 hash bytes (not hex string!)
     auto const sha1_digest = sha1::hash(concat);
-    SPDLOG_INFO("sha1_digest raw bytes computed");
+    SPDLOG_DEBUG("sha1_digest raw bytes computed");
 
     // base64-encode the raw bytes directly
     std::string_view raw_bytes(
             reinterpret_cast<const char*>(sha1_digest.data()), sha1_digest.size());
     std::string b64_hash = to_base64(raw_bytes);
-    SPDLOG_INFO("b64_hash={}", b64_hash);
+    SPDLOG_DEBUG("b64_hash={}", b64_hash);
     return b64_hash;
 }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "connection.hpp"
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -50,10 +51,10 @@ private:
     static constexpr std::uint16_t ListenPort = 8000; ///< default listening port
 
 private:
-    int port_ = ListenPort;    ///< port to listen on
-    int sockfd_ = -1;          ///< listening socket
-    int epollfd_ = -1;         ///< epoll file descriptor
-    std::vector<int> clients_; ///< list of client connected sockets
+    int port_ = ListenPort;                       ///< port to listen on
+    int sockfd_ = -1;                             ///< listening socket
+    int epollfd_ = -1;                            ///< epoll file descriptor
+    std::unordered_map<int, connection> clients_; ///< list of clients, keyed by socket fd
 };
 
 } // namespace ws
