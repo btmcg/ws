@@ -13,6 +13,7 @@ inc_dir = include_directories('src')
 src_files = files(
   'src/base64_codec.cpp',
   'src/sha1.cpp',
+  'src/websocket_frame.cpp',
 )
 
 # main executable source files

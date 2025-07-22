@@ -1,12 +1,21 @@
 #pragma once
 
+#include <bit>
 #include <cstdint>
+#include <cstring>
+#include <optional>
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace ws {
-/// min number of bytes needed to read a frame's payload length
-static constexpr int MinFrameBytesNeeded = 2;
+
+/// min number of bytes needed to read a frame's basic header
+static constexpr std::size_t MinFrameHeaderSize = 2;
+
+/// max number of bytes in a frame header (2 basic + 8 extended + 4 mask)
+static constexpr std::size_t MaxFrameHeaderSize = 14;
 
 enum class OpCode : std::uint8_t
 {
@@ -18,77 +27,91 @@ enum class OpCode : std::uint8_t
     Pong = 0xa
 };
 
-struct websocket_frame
+enum class ParseResult
 {
-    std::uint8_t byte1; //  fin, rsv1, rsv2, rsv3, op_code
-    std::uint8_t byte2; //  masked, payload_len (7 bits)
+    Success,
+    NeedMoreData,
+    InvalidFrame
+};
 
-    std::uint16_t extended_payload_len_16{}; ///< used when payload_len == 126
-    std::uint64_t extended_payload_len_64{}; ///< used when payload_len == 127
-    std::uint8_t masking_key[4]{};
+/// Represents the basic 2-byte WebSocket frame header
+struct basic_websocket_header
+{
+    std::uint8_t byte1; // FIN, RSV1-3, OpCode
+    std::uint8_t byte2; // MASK, payload length (7 bits)
 
-    bool
-    fin() const noexcept
-    {
-        return byte1 & 0b1000'0000;
-    }
-
-    bool
-    rsv1() const noexcept
-    {
-        return byte1 & 0b0100'0000;
-    }
-
-    bool
-    rsv2() const noexcept
-    {
-        return byte1 & 0b0010'0000;
-    }
-
-    bool
-    rsv3() const noexcept
-    {
-        return byte1 & 0b0001'0000;
-    }
-
-    OpCode
-    op_code() const noexcept
-    {
-        return static_cast<OpCode>(byte1 & 0b0000'1111);
-    }
-
-    bool
-    masked() const noexcept
-    {
-        return byte2 & 0b1000'0000;
-    }
-
-    std::uint64_t
-    payload_len() const noexcept
-    {
-        std::uint8_t len = byte2 & 0b0111'1111;
-        if (len < 126) {
-            return len;
-        }
-        if (len == 126) {
-            return std::byteswap(extended_payload_len_16);
-        }
-        return std::byteswap(extended_payload_len_64);
-    }
+    bool fin() const noexcept;
+    bool rsv1() const noexcept;
+    bool rsv2() const noexcept;
+    bool rsv3() const noexcept;
+    OpCode op_code() const noexcept;
+    bool masked() const noexcept;
+    std::uint8_t payload_len_indicator() const noexcept;
 } __attribute__((packed));
 
-
-inline std::vector<std::uint8_t>
-unmask_payload(
-        std::uint8_t const* masked_data, std::size_t payload_len, std::uint8_t const masking_key[4])
+/// parsed WebSocket frame information
+class websocket_frame
 {
-    std::vector<std::uint8_t> unmasked(payload_len);
+private:
+    bool fin_ = false;
+    bool rsv1_ = false;
+    bool rsv2_ = false;
+    bool rsv3_ = false;
+    OpCode op_code_ = OpCode::Continuation;
+    bool masked_ = false;
+    std::uint64_t payload_len_ = 0;
+    std::uint8_t masking_key_[4] = {0};
+    std::size_t header_size_ = 0;
+    bool valid_ = false;
 
-    for (std::size_t i = 0; i < payload_len; ++i) {
-        unmasked[i] = masked_data[i] ^ masking_key[i % 4];
-    }
+public:
+    websocket_frame() = default;
 
-    return unmasked;
-}
+    bool fin() const noexcept;
+    bool rsv1() const noexcept;
+    bool rsv2() const noexcept;
+    bool rsv3() const noexcept;
+    OpCode op_code() const noexcept;
+    bool masked() const noexcept;
+    std::uint64_t payload_len() const noexcept;
+    std::size_t header_size() const noexcept;
+    bool valid() const noexcept;
+    std::span<std::uint8_t const, 4> masking_key() const noexcept;
+
+    /// total frame size (header + payload)
+    std::uint64_t total_size() const noexcept;
+
+    /// Parse frame from buffer data
+    /// \return ParseResult indicating success, need more data, or invalid frame
+    ParseResult parse_from_buffer(std::uint8_t const*, std::size_t) noexcept;
+
+    /// Get payload data from buffer (assumes frame was successfully parsed)
+    /// \param buffer_start Start of the buffer used in parse_from_buffer
+    /// \return Span pointing to payload data
+    std::span<std::uint8_t const> get_payload_data(std::uint8_t const* buffer_start) const noexcept;
+
+    /// Unmask payload data if frame is masked
+    /// \param masked_payload The masked payload data
+    /// \return Unmasked payload data
+    std::vector<std::uint8_t> unmask_payload(std::span<std::uint8_t const> masked_payload) const;
+
+    /// Get text payload as string (for text frames)
+    /// \param buffer_start Start of the buffer used in parse_from_buffer
+    /// \return String view of the text payload (unmasked if necessary)
+    std::optional<std::string> get_text_payload(std::uint8_t const* buffer_start) const;
+
+    /// Validate frame according to RFC 6455
+    bool is_valid_frame() const noexcept;
+
+    /// Reset frame to initial state
+    void reset() noexcept;
+
+private:
+    /// read big-endian 16-bit value
+    static std::uint16_t read_be16(std::uint8_t const*) noexcept;
+
+    /// read big-endian 64-bit value
+    static std::uint64_t read_be64(std::uint8_t const*) noexcept;
+};
 
 } // namespace ws

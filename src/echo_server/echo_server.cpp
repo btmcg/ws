@@ -531,55 +531,87 @@ echo_server::send_websocket_accept(
     return true;
 }
 
+
 bool
 echo_server::on_websocket_frame(connection& conn) noexcept
 {
     SPDLOG_DEBUG("on_websocket_frame: bytes_unread={}", conn.buf.bytes_unread());
 
-    // make sure we can safely read the payload length
-    if (conn.buf.bytes_unread() < MinFrameBytesNeeded) {
-        SPDLOG_DEBUG("on_websocket_frame: bytes_unread={} < MinFrameBytesNeeded ({})",
-                conn.buf.bytes_unread(), MinFrameBytesNeeded);
-        // don't have enough for a full frame, do nothing
-        return true;
+    websocket_frame frame;
+    ParseResult result = frame.parse_from_buffer(conn.buf.read_ptr(), conn.buf.bytes_unread());
+
+    switch (result) {
+        case ParseResult::NeedMoreData:
+            SPDLOG_DEBUG("need more data for complete frame");
+            return true;
+
+        case ParseResult::InvalidFrame:
+            SPDLOG_ERROR("invalid WebSocket frame received");
+            return false; // Invalid frame - close connection
+
+        case ParseResult::Success:
+            break; // Continue processing
     }
 
-    auto frame = reinterpret_cast<websocket_frame const*>(conn.buf.read_ptr());
+    SPDLOG_DEBUG("parsed frame: fin={}, op_code={}, masked={}, payload_len={}, header_size={}",
+            frame.fin(), frame.op_code(), frame.masked(), frame.payload_len(), frame.header_size());
 
-    std::uint64_t payload_len = frame->payload_len();
-    SPDLOG_DEBUG("fin={}, rsv1={}, rsv2={}, rsv3={}, op_code={}, masked={}, payload_len={}",
-            frame->fin(), frame->rsv1(), frame->rsv2(), frame->rsv3(), frame->op_code(),
-            frame->masked(), payload_len);
+    // Handle different frame types
+    switch (frame.op_code()) {
+        case OpCode::Text: {
+            if (auto text_payload = frame.get_text_payload(conn.buf.read_ptr())) {
+                SPDLOG_INFO("Received text message: '{}'", *text_payload);
+                // Echo the message back
+                // send_text_frame(conn, *text_payload);
+            } else {
+                SPDLOG_ERROR("Failed to extract text payload");
+            }
+            break;
+        }
 
-    if (conn.buf.bytes_unread() < (sizeof(websocket_frame::byte1) + sizeof(websocket_frame::byte2)
-                + sizeof(websocket_frame::masking_key) + payload_len)) {
-        // we don't have enough data to read the full packet
-        SPDLOG_DEBUG(
-                "on_websocket_frame: not enough data for message: bytes_unread={}, payload_len={}",
-                conn.buf.bytes_unread(), payload_len);
-        return true;
+            // case OpCode::Binary: {
+            //     auto payload_data = frame.get_payload_data(conn.buf.read_ptr());
+            //     if (frame.masked()) {
+            //         auto unmasked = frame.unmask_payload(payload_data);
+            //         SPDLOG_INFO("Received binary message: {} bytes", unmasked.size());
+            //         // Process unmasked binary data
+            //     } else {
+            //         SPDLOG_INFO("Received unmasked binary message: {} bytes",
+            //         payload_data.size());
+            //         // Process binary data directly
+            //     }
+            //     break;
+            // }
+
+            // case OpCode::Close:
+            //     SPDLOG_INFO("Received close frame");
+            //     conn.conn_state = ConnectionState::WebSocketClosing;
+            //     // Should send close frame back and close connection
+            //     break;
+
+            // case OpCode::Ping: {
+            //     SPDLOG_DEBUG("Received ping frame");
+            //     // Should send pong frame back
+            //     // auto payload_data = frame.get_payload_data(conn.buf.read_ptr());
+            //     // send_pong_frame(conn, payload_data);
+            //     break;
+            // }
+
+            // case OpCode::Pong:
+            //     SPDLOG_DEBUG("Received pong frame");
+            //     // Handle pong (update keepalive, etc.)
+            //     break;
+
+        default:
+            SPDLOG_WARN("Received frame with unsupported opcode: {}",
+                    static_cast<int>(frame.op_code()));
+            break;
     }
 
-    if (frame->fin() && frame->op_code() == OpCode::Text) {
-        // received one complete message in text
-        conn.buf.bytes_read(sizeof(websocket_frame::byte1) + sizeof(websocket_frame::byte2)
-                + sizeof(websocket_frame::masking_key));
-
-        // note that this is a copy
-        std::vector<std::uint8_t> unmasked_payload
-                = unmask_payload(conn.buf.read_ptr(), payload_len, frame->masking_key);
-        SPDLOG_DEBUG("unmasked_payload.size()={}", unmasked_payload.size());
-
-        std::string_view sv(
-                reinterpret_cast<char const*>(unmasked_payload.data()), unmasked_payload.size());
-        SPDLOG_INFO("{}", sv);
-        conn.buf.bytes_read(payload_len);
-    }
-
-    // print_hexdump(reinterpret_cast<void const*>(conn.buf.read_ptr()), conn.buf.bytes_unread());
+    // Consume the frame from the buffer
+    conn.buf.bytes_read(frame.total_size());
 
     return true;
 }
-
 
 } // namespace ws
