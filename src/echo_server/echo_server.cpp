@@ -1,9 +1,11 @@
 #include "echo_server.hpp"
 #include "../base64_codec.hpp"
+#include "../connection.hpp"
 #include "../connection_fmt.hpp"
 #include "../sha1.hpp"
 #include "../str_utils.hpp"
 #include "../websocket_frame.hpp"
+#include "../websocket_frame_fmt.hpp"
 #include <arpa/inet.h> // ::inet_ntop
 #include <fcntl.h>     // ::fcntl
 #include <netdb.h>
@@ -350,6 +352,18 @@ bool
 echo_server::on_websocket_frame(connection& conn) noexcept
 {
     SPDLOG_DEBUG("on_websocket_frame: bytes_unread={}", conn.buf.bytes_unread());
+    // if (conn.buf.bytes_unread() < sizeof(websocket_frame)) {
+    //     SPDLOG_DEBUG("on_websocket_frame: bytes_unread={} < sizeof(websocket_frame)={}",
+    //             conn.buf.bytes_unread(), sizeof(websocket_frame));
+    //     // don't have enough for a full frame, do nothing
+    //     return true;
+    // }
+
+    auto frame = reinterpret_cast<websocket_frame const*>(conn.buf.read_ptr());
+
+    SPDLOG_DEBUG("fin={}, rsv1={}, rsv2={}, rsv3={}, op_code={}", frame->fin, frame->rsv1,
+            frame->rsv2, frame->rsv3, frame->op_code);
+
     return true;
 }
 
