@@ -204,7 +204,7 @@ echo_server::on_incoming_connection() noexcept
     }
 
     // successfully connected. add client entry
-    clients_.emplace(accepted_sock, conn);
+    clients_.emplace(accepted_sock, std::move(conn));
     SPDLOG_INFO("client connected: {}", conn);
 
     return true;

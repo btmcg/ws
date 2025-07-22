@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstring> // std::memmove
+#include <utility> // std::exchange
 
 
 template <std::size_t Capacity>
@@ -15,10 +16,14 @@ private:
 public:
     byte_buffer() noexcept;
     ~byte_buffer() noexcept;
+
+    // prevent copy operations
     byte_buffer(byte_buffer const&) noexcept = delete;
-    byte_buffer(byte_buffer&&) noexcept = delete;
     byte_buffer& operator=(byte_buffer const&) noexcept = delete;
-    byte_buffer& operator=(byte_buffer&&) noexcept = delete;
+
+    // enable move operations
+    byte_buffer(byte_buffer&&) noexcept;
+    byte_buffer& operator=(byte_buffer&&) noexcept;
 
     std::uint8_t const* read_ptr() const noexcept;
     std::uint8_t* write_ptr() noexcept;
@@ -48,6 +53,28 @@ template <std::size_t Capacity>
 byte_buffer<Capacity>::~byte_buffer() noexcept
 {
     delete[] buf_;
+}
+
+template <std::size_t Capacity>
+byte_buffer<Capacity>::byte_buffer(byte_buffer&& rhs) noexcept
+        : buf_(std::exchange(rhs.buf_, nullptr))
+        , rptr_(std::exchange(rhs.rptr_, nullptr))
+        , wptr_(std::exchange(rhs.wptr_, nullptr))
+{
+    // empty
+}
+
+template <std::size_t Capacity>
+byte_buffer<Capacity>&
+byte_buffer<Capacity>::operator=(byte_buffer&& rhs) noexcept
+{
+    if (this != &rhs) {
+        delete[] buf_;
+        buf_ = std::exchange(rhs.buf_, nullptr);
+        rptr_ = std::exchange(rhs.rptr_, nullptr);
+        wptr_ = std::exchange(rhs.wptr_, nullptr);
+    }
+    return *this;
 }
 
 template <std::size_t Capacity>

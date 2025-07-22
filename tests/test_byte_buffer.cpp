@@ -17,6 +17,28 @@ TEST_CASE("basic usage", "[byte_buffer]")
         REQUIRE(buf.bytes_left() == 10);
     }
 
+    SECTION("move constructor")
+    {
+        std::memcpy(buf.write_ptr(), "abcde", sizeof("abcde") - 1);
+        buf.bytes_written(sizeof("abcde") - 1);
+        byte_buffer<10> moved = std::move(buf);
+        REQUIRE(moved.bytes_unread() == 5);
+        REQUIRE(moved.bytes_left() == 5);
+    }
+
+    SECTION("move assignment")
+    {
+        std::memcpy(buf.write_ptr(), "abcde", sizeof("abcde") - 1);
+        buf.bytes_written(sizeof("abcde") - 1);
+
+        byte_buffer<10> moved;
+        moved.bytes_written(3); // dummy data
+
+        moved = std::move(buf);
+        REQUIRE(moved.bytes_unread() == 5);
+        REQUIRE(moved.bytes_left() == 5);
+    }
+
     SECTION("shift on empty buffer")
     {
         std::uint8_t const* rptr = buf.read_ptr();
