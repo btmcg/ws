@@ -194,12 +194,6 @@ echo_server::on_incoming_connection() noexcept
     }
     conn.port = sin->sin_port;
 
-    // successfully connected. create a client entry, keyed by the
-    // socket fd
-
-    clients_.emplace(accepted_sock, conn);
-    SPDLOG_INFO("client connected: {}", conn);
-
     // add the new fd to epoll
     epoll_event event{};
     event.events = (EPOLLIN | EPOLLET);
@@ -208,6 +202,10 @@ echo_server::on_incoming_connection() noexcept
         SPDLOG_CRITICAL("error: epoll_ctl (EPOLL_CTL_ADD): {} {}", std::strerror(errno), errno);
         return false;
     }
+
+    // successfully connected. add client entry
+    clients_.emplace(accepted_sock, conn);
+    SPDLOG_INFO("client connected: {}", conn);
 
     return true;
 }

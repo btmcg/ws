@@ -71,6 +71,7 @@ if catch2_dep.found()
   test_files = [
     'tests/test_str_utils.cpp', 
     'tests/test_base64_codec.cpp',
+    'tests/test_byte_buffer.cpp',
     'tests/test_sha1.cpp',
   ]
 

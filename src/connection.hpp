@@ -1,9 +1,14 @@
 #pragma once
 
+#include "byte_buffer.hpp"
 #include "websocket_frame.hpp"
 #include <arpa/inet.h> // INET_ADDRSTRLEN
 #include <cstdint>
-#include <vector>
+
+
+namespace {
+static constexpr int BufferSize = 1'048'576; ///< max size of connection incoming buffer
+} // namespace
 
 namespace ws {
 
@@ -29,7 +34,7 @@ enum class ParseState : std::uint8_t
 struct connection
 {
     int sockfd;
-    std::vector<std::uint8_t> buf;
+    byte_buffer<BufferSize> buf;
     websocket_frame current_frame;
     char ip[INET_ADDRSTRLEN];
     std::uint16_t port = 0;
