@@ -59,7 +59,7 @@ struct std::formatter<ws::ConnectionState>
     }
 
     auto
-    format(ConnectionState s, std::format_context& ctx) const
+    format(ws::ConnectionState s, std::format_context& ctx) const
     {
         return std::ranges::copy(ws::to_string(s), ctx.out()).out;
     }
@@ -76,7 +76,7 @@ struct std::formatter<ws::ParseState>
     }
 
     auto
-    format(ParseState s, std::format_context& ctx) const
+    format(ws::ParseState s, std::format_context& ctx) const
     {
         return std::ranges::copy(ws::to_string(s), ctx.out()).out;
     }
@@ -93,10 +93,10 @@ struct std::formatter<ws::connection>
     }
 
     auto
-    format(connection const& c, std::format_context& ctx) const
+    format(ws::connection const& c, std::format_context& ctx) const
     {
         return std::format_to(ctx.out(),
-                "connection(ip={},port={},conn_state={},parse_state={},bytes_needed={},payload_bytes_read={}",
+                "connection(ip={},port={},conn_state={},parse_state={},bytes_needed={},payload_bytes_read={})",
                 std::string_view(c.ip), c.port, c.conn_state, c.parse_state, c.bytes_needed,
                 c.payload_bytes_read);
     }
