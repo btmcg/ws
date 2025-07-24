@@ -6,6 +6,7 @@
 #include "../str_utils.hpp"
 #include "../websocket_frame.hpp"
 #include "../websocket_frame_fmt.hpp"
+#include "../websocket_frame_generator.hpp"
 #include <arpa/inet.h> // ::inet_ntop
 #include <fcntl.h>     // ::fcntl
 #include <netdb.h>
@@ -600,10 +601,15 @@ echo_server::on_websocket_close(connection& conn) noexcept
     SPDLOG_INFO("received close frame");
     conn.conn_state = ConnectionState::WebSocketClosing;
 
-    std::uint16_t status_code = 1000; // normal closure
-    std::string paylod = "responding to close from client";
+    auto frame = websocket_frame_generator{}.close();
 
-    // TODO: send close websocket frame
+    SPDLOG_DEBUG("sending {} bytes", frame.size());
+    ssize_t nbytes = ::send(
+            conn.sockfd, frame.data().data(), static_cast<ssize_t>(frame.size()), /*flags=*/0);
+    if (nbytes == -1) {
+        SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
+        return false;
+    }
 
     disconnect_and_cleanup_client(conn);
     return true;
