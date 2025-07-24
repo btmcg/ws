@@ -1,8 +1,10 @@
 project('ws', 'cpp',
   version : '0.1.0',
   default_options : [
+    'b_lto=true',
     'cpp_std=c++23',
     'default_library=static',
+    'optimization=3',
     'prefer_static=true',
     'warning_level=3',
     'werror=true',
