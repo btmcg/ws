@@ -34,8 +34,8 @@ enum class ParseResult
 /// Represents the basic 2-byte WebSocket frame header
 struct basic_websocket_header
 {
-    std::uint8_t byte1; // FIN, RSV1-3, OpCode
-    std::uint8_t byte2; // MASK, payload length (7 bits)
+    std::uint8_t byte1 = 0; // FIN, RSV1-3, OpCode
+    std::uint8_t byte2 = 0; // MASK, payload length (7 bits)
 
     bool fin() const noexcept;
     bool rsv1() const noexcept;
@@ -100,10 +100,10 @@ public:
     /// @return String of the text payload (automatically unmasked)
     std::optional<std::string> get_text_payload() const;
 
+private:
     /// validate frame according to RFC 6455
     bool is_valid_frame() const noexcept;
 
-private:
     /// read big-endian 16-bit value
     static std::uint16_t read_be16(std::uint8_t const*) noexcept;
 
