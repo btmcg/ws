@@ -14,6 +14,7 @@ src_files = files(
   'src/base64_codec.cpp',
   'src/sha1.cpp',
   'src/websocket_frame.cpp',
+  'src/websocket_frame_generator.cpp',
 )
 
 # main executable source files
@@ -74,6 +75,8 @@ if catch2_dep.found()
     'tests/test_base64_codec.cpp',
     'tests/test_byte_buffer.cpp',
     'tests/test_sha1.cpp',
+    'tests/test_websocket_frame.cpp',
+    'tests/test_websocket_frame_generator.cpp',
   ]
 
   # Create test executables for each test file
