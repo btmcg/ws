@@ -609,6 +609,17 @@ echo_server::on_websocket_ping(connection& conn, std::span<std::uint8_t const> p
 }
 
 bool
+echo_server::on_websocket_pong(connection&, std::span<std::uint8_t const> payload)
+{
+    if (payload.empty()) {
+        SPDLOG_INFO("received pong frame");
+    } else {
+        SPDLOG_INFO("received pong frame with payload of {} bytes", payload.size());
+    }
+    return true;
+}
+
+bool
 echo_server::on_websocket_close(connection& conn)
 {
     SPDLOG_INFO("received close frame");

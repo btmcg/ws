@@ -23,8 +23,6 @@
       color: #999; 
       cursor: not-allowed; 
     }
-    .ping-btn { background: #e8f4f8; }
-    .pong-btn { background: #f0f8e8; }
     .close-btn { background: #f8e8e8; }
     .binary-btn { background: #f8f0e8; }
   </style>
@@ -49,8 +47,6 @@
   </div>
 
   <div class="control-buttons">
-    <button class="ping-btn" onclick="sendPing()" id="pingBtn" disabled>Send Ping</button>
-    <button class="pong-btn" onclick="sendPong()" id="pongBtn" disabled>Send Pong</button>
     <button class="close-btn" onclick="sendClose()" id="closeBtn" disabled>Send Close</button>
     <button class="binary-btn" onclick="sendBinary()" id="binaryBtn" disabled>Send Binary</button>
   </div>
@@ -72,20 +68,18 @@
 
     function updateButtonStates() {
       const connected = socket && socket.readyState === WebSocket.OPEN;
-      document.getElementById("pingBtn").disabled = !connected;
-      document.getElementById("pongBtn").disabled = !connected;
       document.getElementById("closeBtn").disabled = !connected;
       document.getElementById("binaryBtn").disabled = !connected;
     }
 
     function connect() {
       const url = document.getElementById("url").value;
-      
+
       // Close existing connection if any
       if (socket) {
         socket.close();
       }
-      
+
       socket = new WebSocket(url);
 
       socket.onopen = () => {
@@ -129,30 +123,6 @@
       }
     }
 
-    function sendPing() {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        // Note: Browser WebSocket API doesn't allow sending raw ping frames
-        // This is a limitation of the browser's WebSocket implementation
-        // We'll send a text message indicating it's a ping instead
-        const pingMessage = "PING:" + Date.now();
-        socket.send(pingMessage);
-        log("🏓 Ping sent (as text): " + pingMessage);
-      } else {
-        log("⚠️ Not connected");
-      }
-    }
-
-    function sendPong() {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        // Note: Similar to ping, browsers don't allow raw pong frames
-        const pongMessage = "PONG:" + Date.now();
-        socket.send(pongMessage);
-        log("🏓 Pong sent (as text): " + pongMessage);
-      } else {
-        log("⚠️ Not connected");
-      }
-    }
-
     function sendClose() {
       if (socket && socket.readyState === WebSocket.OPEN) {
         socket.close(1000, "Normal closure");
@@ -166,9 +136,9 @@
       if (socket && socket.readyState === WebSocket.OPEN) {
         const input = document.getElementById("binaryMsg").value;
         const hexMode = document.getElementById("hexMode").checked;
-        
+
         let binaryData;
-        
+
         if (hexMode) {
           // Parse hex string
           const hexStr = input.replace(/[^0-9a-fA-F]/g, ''); // Remove non-hex chars
@@ -176,7 +146,7 @@
             log("⚠️ Hex string must have even number of characters");
             return;
           }
-          
+
           const bytes = [];
           for (let i = 0; i < hexStr.length; i += 2) {
             bytes.push(parseInt(hexStr.substr(i, 2), 16));
@@ -186,12 +156,12 @@
           // Convert text to binary
           binaryData = new TextEncoder().encode(input);
         }
-        
+
         socket.send(binaryData.buffer);
-        
+
         const hexStr = Array.from(binaryData).map(b => b.toString(16).padStart(2, '0')).join(' ');
         log(`➡️  Binary (${binaryData.length} bytes): ${hexStr}`);
-        
+
         if (!hexMode) {
           document.getElementById("binaryMsg").value = "";
         }

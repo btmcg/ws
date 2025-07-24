@@ -47,6 +47,9 @@ private:
     /// Called when a ping control frame received
     bool on_websocket_ping(connection&, std::span<std::uint8_t const> payload);
 
+    /// Called when a pong control frame received
+    bool on_websocket_pong(connection&, std::span<std::uint8_t const> payload);
+
     /// Called when a close frame received
     bool on_websocket_close(connection&);
 
