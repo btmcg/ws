@@ -541,7 +541,8 @@ echo_server::on_websocket_frame(connection& conn)
             return false; // invalid frame - close connection
 
         case ParseResult::Success:
-            break; // continue processing
+        default:
+            break;
     }
 
     SPDLOG_DEBUG("parsed frame: fin={}, op_code={}, masked={}, payload_len={}, header_size={}",
@@ -559,6 +560,10 @@ echo_server::on_websocket_frame(connection& conn)
 
         case OpCode::Binary: {
             on_websocket_binary_frame(conn, frame.get_payload_data());
+        } break;
+
+        case OpCode::Continuation: {
+            // TODO
         } break;
 
         case OpCode::Close: {

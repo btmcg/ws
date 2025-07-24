@@ -21,6 +21,8 @@ to_string(ConnectionState s) noexcept
             return "WebSocketClosing";
         case ConnectionState::Undefined:
             return "Undefined";
+        default:
+            return "???";
     }
     return "???";
 }
@@ -42,6 +44,8 @@ to_string(ParseState s) noexcept
             return "ReadingPayload";
         case ParseState::Undefined:
             return "Undefined";
+        default:
+            return "???";
     }
     return "???";
 }

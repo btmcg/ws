@@ -23,6 +23,8 @@ to_string(OpCode o) noexcept
             return "Ping";
         case OpCode::Pong:
             return "Pong";
+        default:
+            return "???";
     }
     return "???";
 }

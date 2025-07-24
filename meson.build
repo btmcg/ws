@@ -1,7 +1,10 @@
 project('ws', 'cpp',
   version : '0.1.0',
-  default_options : ['warning_level=3',
-                     'cpp_std=c++23'])
+  default_options : [
+    'cpp_std=c++23',
+    'warning_level=3',
+    'werror=true',
+])
 
 # import filesystem module
 fs = import('fs')
@@ -26,13 +29,50 @@ echo_server_files = files(
   'src/echo_server/main.cpp',
 )
 
-# Use spdlog as a subproject with consistent configuration
-add_global_arguments([
+cpp_args = [
+  # this allows the usage of SPDLOG_TRACE
   '-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE',
-  '-DSPDLOG_USE_STD_FORMAT'
-  ], language : 'cpp')
+  # this tells spdlog to use std::format rather than an external fmt lib
+  '-DSPDLOG_USE_STD_FORMAT',
+]
 
-# Force using spdlog subproject instead of system version
+addl_warning_flags = [
+  '-fno-operator-names',
+  '-Wcast-align',
+  '-Wcast-qual',
+  '-Wctor-dtor-privacy',
+  '-Wdisabled-optimization',
+  '-Wempty-body',
+  '-Wfloat-equal',
+  '-Wformat=2',
+  '-Wmissing-include-dirs',
+  '-Wno-deprecated-declarations',
+  '-Wnon-virtual-dtor',
+  '-Woverloaded-virtual',
+  '-Wswitch-default',
+  '-Wswitch-enum',
+  '-Wundef',
+  '-Wuninitialized',
+  '-Wzero-as-null-pointer-constant',
+]
+cpp_args += addl_warning_flags
+
+compiler = meson.get_compiler('cpp')
+if compiler.get_id() == 'gcc'
+  cpp_args += [
+    '-Wsuggest-final-methods',
+    '-Wsuggest-final-types',
+    '-Wsuggest-override',
+    '-Wuseless-cast',
+  ]
+endif
+
+add_project_arguments(cpp_args, language : 'cpp')
+
+
+#
+# spdlog
+#
 spdlog_proj = subproject('spdlog', default_options: [
     'tests=disabled',
     'example=false', 
@@ -41,11 +81,15 @@ spdlog_proj = subproject('spdlog', default_options: [
 ])
 spdlog_dep = spdlog_proj.get_variable('spdlog_dep')
 
-# Use Catch2 from subproject
+
+#
+# catch2
+#
 catch2_proj = subproject('catch2', default_options: [
     'tests=false'
 ])
 catch2_dep = catch2_proj.get_variable('catch2_with_main_dep')
+
 
 # define the main executable
 executable('ws',
