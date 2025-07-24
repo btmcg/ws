@@ -48,72 +48,19 @@ basic_websocket_header::payload_len_indicator() const noexcept
 
 /**********************************************************************/
 
-bool
-websocket_frame::fin() const noexcept
+void
+websocket_frame::reset() noexcept
 {
-    return fin_;
+    fin_ = false;
+    rsv1_ = rsv2_ = rsv3_ = false;
+    op_code_ = OpCode::Continuation;
+    masked_ = false;
+    payload_len_ = 0;
+    std::memset(masking_key_, 0, sizeof(masking_key_));
+    header_size_ = 0;
+    valid_ = false;
+    payload_data_.clear();
 }
-
-bool
-websocket_frame::rsv1() const noexcept
-{
-    return rsv1_;
-}
-
-bool
-websocket_frame::rsv2() const noexcept
-{
-    return rsv2_;
-}
-
-bool
-websocket_frame::rsv3() const noexcept
-{
-    return rsv3_;
-}
-
-OpCode
-websocket_frame::op_code() const noexcept
-{
-    return op_code_;
-}
-
-bool
-websocket_frame::masked() const noexcept
-{
-    return masked_;
-}
-
-std::uint64_t
-websocket_frame::payload_len() const noexcept
-{
-    return payload_len_;
-}
-
-std::size_t
-websocket_frame::header_size() const noexcept
-{
-    return header_size_;
-}
-
-bool
-websocket_frame::valid() const noexcept
-{
-    return valid_;
-}
-
-std::span<std::uint8_t const, 4>
-websocket_frame::masking_key() const noexcept
-{
-    return std::span<std::uint8_t const, 4>(masking_key_, 4);
-}
-
-std::uint64_t
-websocket_frame::total_size() const noexcept
-{
-    return header_size_ + payload_len_;
-}
-
 
 ParseResult
 websocket_frame::parse_from_buffer(std::uint8_t const* data, std::size_t avail) noexcept
@@ -206,6 +153,73 @@ websocket_frame::parse_from_buffer(std::uint8_t const* data, std::size_t avail) 
     return ParseResult::Success;
 }
 
+bool
+websocket_frame::fin() const noexcept
+{
+    return fin_;
+}
+
+bool
+websocket_frame::rsv1() const noexcept
+{
+    return rsv1_;
+}
+
+bool
+websocket_frame::rsv2() const noexcept
+{
+    return rsv2_;
+}
+
+bool
+websocket_frame::rsv3() const noexcept
+{
+    return rsv3_;
+}
+
+OpCode
+websocket_frame::op_code() const noexcept
+{
+    return op_code_;
+}
+
+bool
+websocket_frame::masked() const noexcept
+{
+    return masked_;
+}
+
+std::uint64_t
+websocket_frame::payload_len() const noexcept
+{
+    return payload_len_;
+}
+
+std::size_t
+websocket_frame::header_size() const noexcept
+{
+    return header_size_;
+}
+
+bool
+websocket_frame::valid() const noexcept
+{
+    return valid_;
+}
+
+std::span<std::uint8_t const, 4>
+websocket_frame::masking_key() const noexcept
+{
+    return std::span<std::uint8_t const, 4>(masking_key_, 4);
+}
+
+std::uint64_t
+websocket_frame::total_size() const noexcept
+{
+    return header_size_ + payload_len_;
+}
+
+
 std::span<std::uint8_t const>
 websocket_frame::get_payload_data() const noexcept
 {
@@ -255,28 +269,14 @@ websocket_frame::is_valid_frame() const noexcept
 
     // reserved opcodes
     if (opcode_val >= 3 && opcode_val <= 7) {
-        return false; // Reserved for future non-control frames
+        return false; // reserved for future non-control frames
     }
     if (opcode_val >= 0xb && opcode_val <= 0xf) {
-        return false; // Reserved for future control frames
+        return false; // reserved for future control frames
     }
 
     // client-to-server frames must be masked
     return true;
-}
-
-void
-websocket_frame::reset() noexcept
-{
-    fin_ = false;
-    rsv1_ = rsv2_ = rsv3_ = false;
-    op_code_ = OpCode::Continuation;
-    masked_ = false;
-    payload_len_ = 0;
-    std::memset(masking_key_, 0, sizeof(masking_key_));
-    header_size_ = 0;
-    valid_ = false;
-    payload_data_.clear();
 }
 
 std::uint16_t

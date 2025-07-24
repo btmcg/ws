@@ -44,12 +44,17 @@ private:
     /// \return \c false on error
     bool on_websocket_frame(connection&) noexcept;
 
+    /// Called when a close frame received
+    bool on_websocket_close(connection&) noexcept;
+
 private:
     bool validate_request_method_uri_and_version(std::string const&) const noexcept;
     bool validate_header_fields(
             std::unordered_map<std::string, std::string> const& header_fields) const noexcept;
     std::string generate_accept_key(std::string const&) const noexcept;
     bool send_websocket_accept(connection&, std::string const& sec_websocket_key) const noexcept;
+    bool send_websocket_close(connection&);
+    bool disconnect_and_cleanup_client(connection&);
 
 private:
     static constexpr std::uint16_t ListenPort = 8000; ///< default listening port

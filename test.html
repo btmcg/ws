@@ -9,6 +9,24 @@
     input, button { font-size: 1em; margin-top: 1em; }
     .input-group { display: flex; align-items: center; gap: 10px; margin-top: 1em; }
     .input-group input { flex: 1; }
+    .control-buttons { margin-top: 1em; display: flex; gap: 10px; flex-wrap: wrap; }
+    .control-buttons button { 
+      padding: 8px 12px; 
+      background: #f0f0f0; 
+      border: 1px solid #ccc; 
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .control-buttons button:hover { background: #e0e0e0; }
+    .control-buttons button:disabled { 
+      background: #f9f9f9; 
+      color: #999; 
+      cursor: not-allowed; 
+    }
+    .ping-btn { background: #e8f4f8; }
+    .pong-btn { background: #f0f8e8; }
+    .close-btn { background: #f8e8e8; }
+    .binary-btn { background: #f8f0e8; }
   </style>
 </head>
 <body>
@@ -17,7 +35,7 @@
 
   <div class="input-group">
     <label for="url">WebSocket URL:</label>
-    <input id="url" value="ws://localhost:8080" size="40">
+    <input id="url" value="ws://localhost:8000" size="40">
     <button onclick="connect()">Connect</button>
   </div>
 
@@ -27,7 +45,19 @@
 
   <div class="input-group">
     <input id="msg" placeholder="Enter message">
-    <button onclick="send()">Send</button>
+    <button onclick="send()">Send Text</button>
+  </div>
+
+  <div class="control-buttons">
+    <button class="ping-btn" onclick="sendPing()" id="pingBtn" disabled>Send Ping</button>
+    <button class="pong-btn" onclick="sendPong()" id="pongBtn" disabled>Send Pong</button>
+    <button class="close-btn" onclick="sendClose()" id="closeBtn" disabled>Send Close</button>
+    <button class="binary-btn" onclick="sendBinary()" id="binaryBtn" disabled>Send Binary</button>
+  </div>
+
+  <div class="input-group">
+    <input id="binaryMsg" placeholder="Enter text to send as binary">
+    <label><input type="checkbox" id="hexMode"> Hex mode (e.g., "48656c6c6f")</label>
   </div>
 
   <script>
@@ -35,39 +65,136 @@
 
     function log(message) {
       const logBox = document.getElementById("log");
-      logBox.innerHTML += message + "<br>";
+      const timestamp = new Date().toLocaleTimeString();
+      logBox.innerHTML += `[${timestamp}] ${message}<br>`;
       logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function updateButtonStates() {
+      const connected = socket && socket.readyState === WebSocket.OPEN;
+      document.getElementById("pingBtn").disabled = !connected;
+      document.getElementById("pongBtn").disabled = !connected;
+      document.getElementById("closeBtn").disabled = !connected;
+      document.getElementById("binaryBtn").disabled = !connected;
     }
 
     function connect() {
       const url = document.getElementById("url").value;
+      
+      // Close existing connection if any
+      if (socket) {
+        socket.close();
+      }
+      
       socket = new WebSocket(url);
 
       socket.onopen = () => {
         document.getElementById("status").textContent = "Connected";
         log("✅ Connected to " + url);
+        updateButtonStates();
       };
 
       socket.onmessage = (event) => {
-        log("⬅️  " + event.data);
+        if (event.data instanceof ArrayBuffer) {
+          const bytes = new Uint8Array(event.data);
+          const hexStr = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+          log(`⬅️  Binary (${bytes.length} bytes): ${hexStr}`);
+        } else {
+          log("⬅️  " + event.data);
+        }
       };
 
-      socket.onclose = () => {
+      socket.onclose = (event) => {
         document.getElementById("status").textContent = "Disconnected";
-        log("❌ Connection closed");
+        log(`❌ Connection closed (code: ${event.code}, reason: "${event.reason}")`);
+        updateButtonStates();
       };
 
       socket.onerror = (err) => {
-        log("⚠️ Error: " + err.message);
+        log("⚠️ Error: " + (err.message || "Unknown error"));
       };
+
+      // Handle ping frames (browsers automatically respond to pings with pongs)
+      // Note: Browsers don't expose ping/pong events to JavaScript for security reasons
     }
 
     function send() {
       const message = document.getElementById("msg").value;
       if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(message);
-        log("➡️  " + message);
-        document.getElementById("msg").value = ""; // Clear input after sending
+        log("➡️  Text: " + message);
+        document.getElementById("msg").value = "";
+      } else {
+        log("⚠️ Not connected");
+      }
+    }
+
+    function sendPing() {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        // Note: Browser WebSocket API doesn't allow sending raw ping frames
+        // This is a limitation of the browser's WebSocket implementation
+        // We'll send a text message indicating it's a ping instead
+        const pingMessage = "PING:" + Date.now();
+        socket.send(pingMessage);
+        log("🏓 Ping sent (as text): " + pingMessage);
+      } else {
+        log("⚠️ Not connected");
+      }
+    }
+
+    function sendPong() {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        // Note: Similar to ping, browsers don't allow raw pong frames
+        const pongMessage = "PONG:" + Date.now();
+        socket.send(pongMessage);
+        log("🏓 Pong sent (as text): " + pongMessage);
+      } else {
+        log("⚠️ Not connected");
+      }
+    }
+
+    function sendClose() {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close(1000, "Normal closure");
+        log("🔒 Close frame sent");
+      } else {
+        log("⚠️ Not connected");
+      }
+    }
+
+    function sendBinary() {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        const input = document.getElementById("binaryMsg").value;
+        const hexMode = document.getElementById("hexMode").checked;
+        
+        let binaryData;
+        
+        if (hexMode) {
+          // Parse hex string
+          const hexStr = input.replace(/[^0-9a-fA-F]/g, ''); // Remove non-hex chars
+          if (hexStr.length % 2 !== 0) {
+            log("⚠️ Hex string must have even number of characters");
+            return;
+          }
+          
+          const bytes = [];
+          for (let i = 0; i < hexStr.length; i += 2) {
+            bytes.push(parseInt(hexStr.substr(i, 2), 16));
+          }
+          binaryData = new Uint8Array(bytes);
+        } else {
+          // Convert text to binary
+          binaryData = new TextEncoder().encode(input);
+        }
+        
+        socket.send(binaryData.buffer);
+        
+        const hexStr = Array.from(binaryData).map(b => b.toString(16).padStart(2, '0')).join(' ');
+        log(`➡️  Binary (${binaryData.length} bytes): ${hexStr}`);
+        
+        if (!hexMode) {
+          document.getElementById("binaryMsg").value = "";
+        }
       } else {
         log("⚠️ Not connected");
       }
@@ -87,9 +214,17 @@
       }
     });
 
+    // Add Enter key support for binary message input
+    document.getElementById("binaryMsg").addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        sendBinary();
+      }
+    });
+
     // Focus on URL input when page loads
     window.addEventListener("load", function() {
       document.getElementById("url").focus();
+      updateButtonStates();
     });
   </script>
 

@@ -65,6 +65,15 @@ private:
 public:
     websocket_frame() = default;
 
+    /// reset frame to initial state
+    void reset() noexcept;
+
+public:
+    /// Parse frame from buffer data
+    /// \return ParseResult indicating success, need more data, or invalid frame
+    ParseResult parse_from_buffer(std::uint8_t const*, std::size_t) noexcept;
+
+public:
     bool fin() const noexcept;
     bool rsv1() const noexcept;
     bool rsv2() const noexcept;
@@ -78,10 +87,6 @@ public:
 
     /// total frame size (header + payload)
     std::uint64_t total_size() const noexcept;
-
-    /// Parse frame from buffer data
-    /// \return ParseResult indicating success, need more data, or invalid frame
-    ParseResult parse_from_buffer(std::uint8_t const*, std::size_t) noexcept;
 
     /// Get payload data (automatically unmasked if necessary)
     /// @return Span pointing to payload data
@@ -97,9 +102,6 @@ public:
 
     /// validate frame according to RFC 6455
     bool is_valid_frame() const noexcept;
-
-    /// reset frame to initial state
-    void reset() noexcept;
 
 private:
     /// read big-endian 16-bit value

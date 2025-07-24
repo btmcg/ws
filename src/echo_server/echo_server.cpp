@@ -259,18 +259,7 @@ echo_server::on_incoming_data(connection& conn) noexcept
     // client disconnected
     if (nbytes == 0) {
         SPDLOG_INFO("client on fd {} disconnected", conn.sockfd);
-
-        epoll_event event{};
-        event.events = (EPOLLIN | EPOLLET);
-        event.data.fd = conn.sockfd;
-        if (int rv = ::epoll_ctl(epollfd_, EPOLL_CTL_DEL, conn.sockfd, &event); rv == -1) {
-            SPDLOG_CRITICAL("error: epoll_ctl (EPOLL_CTL_DEL): {} {}", std::strerror(errno), errno);
-            return false;
-        }
-
-        assert(::close(conn.sockfd) != -1);
-        clients_.erase(conn.sockfd);
-
+        disconnect_and_cleanup_client(conn);
         return true;
     }
 
@@ -566,8 +555,7 @@ echo_server::on_websocket_frame(connection& conn) noexcept
             } else {
                 SPDLOG_ERROR("failed to extract text payload");
             }
-            break;
-        }
+        } break;
 
         case OpCode::Binary: {
             auto payload_data = frame.get_payload_data();
@@ -576,11 +564,10 @@ echo_server::on_websocket_frame(connection& conn) noexcept
             break;
         }
 
-        case OpCode::Close:
-            SPDLOG_INFO("received close frame");
-            conn.conn_state = ConnectionState::WebSocketClosing;
+        case OpCode::Close: {
+            on_websocket_close(conn);
             // Should send close frame back and close connection
-            break;
+        } break;
 
         case OpCode::Ping: {
             SPDLOG_DEBUG("received ping frame");
@@ -604,6 +591,38 @@ echo_server::on_websocket_frame(connection& conn) noexcept
     // consume the frame from the buffer
     conn.buf.bytes_read(frame.total_size());
 
+    return true;
+}
+
+bool
+echo_server::on_websocket_close(connection& conn) noexcept
+{
+    SPDLOG_INFO("received close frame");
+    conn.conn_state = ConnectionState::WebSocketClosing;
+
+    std::uint16_t status_code = 1000; // normal closure
+    std::string paylod = "responding to close from client";
+
+    // TODO: send close websocket frame
+
+    disconnect_and_cleanup_client(conn);
+    return true;
+}
+
+bool
+echo_server::disconnect_and_cleanup_client(connection& conn)
+{
+    epoll_event event{};
+    event.events = (EPOLLIN | EPOLLET);
+    event.data.fd = conn.sockfd;
+    if (int rv = ::epoll_ctl(epollfd_, EPOLL_CTL_DEL, conn.sockfd, &event); rv == -1) {
+        SPDLOG_CRITICAL("error: epoll_ctl (EPOLL_CTL_DEL): {} {}", std::strerror(errno), errno);
+        return false;
+    }
+
+    close(conn.sockfd);
+    clients_.erase(conn.sockfd);
+    SPDLOG_INFO("client disconnected: {}", conn);
     return true;
 }
 
