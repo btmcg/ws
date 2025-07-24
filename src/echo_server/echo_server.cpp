@@ -532,15 +532,16 @@ echo_server::on_websocket_frame(connection& conn)
 
     switch (result) {
         case ParseResult::NeedMoreData:
-            SPDLOG_DEBUG("Need more data for complete frame");
-            return true; // Wait for more data
+            SPDLOG_DEBUG("need more data for complete frame");
+            return true; // wait for more data
 
         case ParseResult::InvalidFrame:
-            SPDLOG_ERROR("Invalid WebSocket frame received");
-            return false; // Invalid frame - close connection
+            SPDLOG_ERROR("invalid WebSocket frame received");
+            disconnect_and_cleanup_client(conn);
+            return false; // invalid frame - close connection
 
         case ParseResult::Success:
-            break; // Continue processing
+            break; // continue processing
     }
 
     SPDLOG_DEBUG("parsed frame: fin={}, op_code={}, masked={}, payload_len={}, header_size={}",
