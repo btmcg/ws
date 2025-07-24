@@ -549,12 +549,11 @@ echo_server::on_websocket_frame(connection& conn)
 
     switch (frame.op_code()) {
         case OpCode::Text: {
-            if (auto text_payload = frame.get_text_payload(); text_payload.has_value()) {
-                SPDLOG_INFO("received text message: '{}'", *text_payload);
-                // Echo the message back
-                // send_text_frame(conn, *text_payload);
+            if (auto payload = frame.get_text_payload(); !payload) {
+                SPDLOG_ERROR(
+                        "received text message of {} bytes with bad payload", frame.payload_len());
             } else {
-                SPDLOG_ERROR("failed to extract text payload");
+                on_websocket_text_frame(conn, payload.value());
             }
         } break;
 
@@ -636,6 +635,27 @@ echo_server::on_websocket_close(connection& conn)
     }
 
     disconnect_and_cleanup_client(conn);
+    return true;
+}
+
+bool
+echo_server::on_websocket_text_frame(connection& conn, std::string_view text_data)
+{
+    if (text_data.empty()) {
+        SPDLOG_INFO("received text frame with payload of size 0");
+        return true;
+    }
+
+    auto frame = websocket_frame_generator{}.text(text_data);
+
+    SPDLOG_DEBUG("sending {} bytes", frame.size());
+    ssize_t nbytes = ::send(
+            conn.sockfd, frame.data().data(), static_cast<ssize_t>(frame.size()), /*flags=*/0);
+    if (nbytes == -1) {
+        SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
+        return false;
+    }
+
     return true;
 }
 

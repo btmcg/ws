@@ -53,6 +53,9 @@ private:
     /// Called when a close frame received
     bool on_websocket_close(connection&);
 
+    /// Called when a text frame received
+    bool on_websocket_text_frame(connection&, std::string_view text_data);
+
 private:
     bool validate_request_method_uri_and_version(std::string const&) const noexcept;
     bool validate_header_fields(
