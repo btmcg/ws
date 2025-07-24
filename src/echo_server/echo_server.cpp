@@ -549,7 +549,8 @@ echo_server::on_websocket_frame(connection& conn)
 
     switch (frame.op_code()) {
         case OpCode::Text: {
-            if (auto payload = frame.get_text_payload(); !payload) {
+            auto payload = frame.get_text_payload();
+            if (!payload) {
                 SPDLOG_ERROR(
                         "received text message of {} bytes with bad payload", frame.payload_len());
             } else {
@@ -558,11 +559,8 @@ echo_server::on_websocket_frame(connection& conn)
         } break;
 
         case OpCode::Binary: {
-            auto payload_data = frame.get_payload_data();
-            SPDLOG_INFO("received binary message: {} bytes", payload_data.size());
-            // Process binary data (already unmasked)
-            break;
-        }
+            on_websocket_binary_frame(conn, frame.get_payload_data());
+        } break;
 
         case OpCode::Close: {
             on_websocket_close(conn);
@@ -647,6 +645,27 @@ echo_server::on_websocket_text_frame(connection& conn, std::string_view text_dat
     }
 
     auto frame = websocket_frame_generator{}.text(text_data);
+
+    SPDLOG_DEBUG("sending {} bytes", frame.size());
+    ssize_t nbytes = ::send(
+            conn.sockfd, frame.data().data(), static_cast<ssize_t>(frame.size()), /*flags=*/0);
+    if (nbytes == -1) {
+        SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
+        return false;
+    }
+
+    return true;
+}
+
+bool
+echo_server::on_websocket_binary_frame(connection& conn, std::span<std::uint8_t const> payload)
+{
+    if (payload.empty()) {
+        SPDLOG_INFO("received binary frame with payload of size 0");
+        return true;
+    }
+
+    auto frame = websocket_frame_generator{}.binary(payload);
 
     SPDLOG_DEBUG("sending {} bytes", frame.size());
     ssize_t nbytes = ::send(
