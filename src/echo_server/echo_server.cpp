@@ -546,13 +546,11 @@ echo_server::on_websocket_frame(connection& conn)
     SPDLOG_DEBUG("parsed frame: fin={}, op_code={}, masked={}, payload_len={}, header_size={}",
             frame.fin(), frame.op_code(), frame.masked(), frame.payload_len(), frame.header_size());
 
-
     switch (frame.op_code()) {
         case OpCode::Text: {
             auto payload = frame.get_text_payload();
             if (!payload) {
-                SPDLOG_ERROR(
-                        "received text message of {} bytes with bad payload", frame.payload_len());
+                SPDLOG_ERROR("received text frame with bad payload");
             } else {
                 on_websocket_text_frame(conn, payload.value());
             }
@@ -570,10 +568,9 @@ echo_server::on_websocket_frame(connection& conn)
             on_websocket_ping(conn, frame.get_payload_data());
         } break;
 
-        case OpCode::Pong:
-            SPDLOG_DEBUG("received pong frame");
-            // Handle pong (update keepalive, etc.)
-            break;
+        case OpCode::Pong: {
+            on_websocket_pong(conn, frame.get_payload_data());
+        } break;
 
         default:
             SPDLOG_WARN("received frame with unsupported opcode: {}",
