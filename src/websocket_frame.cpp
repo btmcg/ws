@@ -71,7 +71,7 @@ websocket_frame::parse_from_buffer(std::uint8_t const* data, std::size_t avail) 
         return ParseResult::NeedMoreData;
     }
 
-    // Parse basic header
+    // parse basic header
     auto const* header = reinterpret_cast<basic_websocket_header const*>(data);
 
     fin_ = header->fin();
@@ -84,7 +84,7 @@ websocket_frame::parse_from_buffer(std::uint8_t const* data, std::size_t avail) 
     std::uint8_t payload_indicator = header->payload_len_indicator();
     header_size_ = MinFrameHeaderSize;
 
-    // Parse extended payload length
+    // parse extended payload length
     if (payload_indicator < 126) {
         payload_len_ = payload_indicator;
     } else if (payload_indicator == 126) {
@@ -94,7 +94,7 @@ websocket_frame::parse_from_buffer(std::uint8_t const* data, std::size_t avail) 
         payload_len_ = read_be16(data + header_size_);
         header_size_ += 2;
 
-        // Validate: payload length < 126 should not use extended format
+        // payload length < 126 should not use extended format
         if (payload_len_ < 126) {
             return ParseResult::InvalidFrame;
         }
@@ -105,18 +105,18 @@ websocket_frame::parse_from_buffer(std::uint8_t const* data, std::size_t avail) 
         payload_len_ = read_be64(data + header_size_);
         header_size_ += 8;
 
-        // Validate: payload length < 65536 should not use 64-bit format
+        // payload length < 65536 should not use 64-bit format
         if (payload_len_ < 65536) {
             return ParseResult::InvalidFrame;
         }
 
-        // Validate: MSB must be 0 (no payloads > 2^63-1)
+        // MSB must be 0 (no payloads > 2^63-1)
         if (payload_len_ & 0x8000000000000000ull) {
             return ParseResult::InvalidFrame;
         }
     }
 
-    // Parse masking key if present
+    // parse masking key if present
     if (masked_) {
         if (avail < header_size_ + 4) {
             return ParseResult::NeedMoreData;
@@ -140,11 +140,11 @@ websocket_frame::parse_from_buffer(std::uint8_t const* data, std::size_t avail) 
             payload_data_[i] = payload_start[i] ^ masking_key_[i % 4];
         }
     } else {
-        // Store payload directly
+        // store payload directly
         std::memcpy(payload_data_.data(), payload_start, payload_len_);
     }
 
-    // Additional validation
+    // additional validation
     if (!is_valid_frame()) {
         return ParseResult::InvalidFrame;
     }
