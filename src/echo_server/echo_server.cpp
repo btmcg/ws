@@ -349,8 +349,8 @@ echo_server::on_http_request(connection& conn) const noexcept
 }
 
 bool
-echo_server::on_websocket_upgrade_request(connection& conn,
-        std::unordered_map<std::string, std::string> const& header_fields) const noexcept
+echo_server::on_websocket_upgrade_request(
+        connection& conn, std::unordered_map<std::string, std::string> const& header_fields) const
 {
     if (!validate_header_fields(header_fields)) {
         SPDLOG_ERROR("header fields validation failed");
@@ -523,7 +523,7 @@ echo_server::send_websocket_accept(
 
 
 bool
-echo_server::on_websocket_frame(connection& conn) noexcept
+echo_server::on_websocket_frame(connection& conn)
 {
     SPDLOG_DEBUG("on_websocket_frame: bytes_unread={}", conn.buf.bytes_unread());
 
@@ -549,7 +549,7 @@ echo_server::on_websocket_frame(connection& conn) noexcept
 
     switch (frame.op_code()) {
         case OpCode::Text: {
-            if (auto text_payload = frame.get_text_payload()) {
+            if (auto text_payload = frame.get_text_payload(); text_payload.has_value()) {
                 SPDLOG_INFO("received text message: '{}'", *text_payload);
                 // Echo the message back
                 // send_text_frame(conn, *text_payload);
@@ -567,16 +567,11 @@ echo_server::on_websocket_frame(connection& conn) noexcept
 
         case OpCode::Close: {
             on_websocket_close(conn);
-            // Should send close frame back and close connection
         } break;
 
         case OpCode::Ping: {
-            SPDLOG_DEBUG("received ping frame");
-            // Should send pong frame back with same payload
-            // auto payload_data = frame.get_payload_data();
-            // send_pong_frame(conn, payload_data);
-            break;
-        }
+            on_websocket_ping(conn, frame.get_payload_data());
+        } break;
 
         case OpCode::Pong:
             SPDLOG_DEBUG("received pong frame");
@@ -596,7 +591,25 @@ echo_server::on_websocket_frame(connection& conn) noexcept
 }
 
 bool
-echo_server::on_websocket_close(connection& conn) noexcept
+echo_server::on_websocket_ping(connection& conn, std::span<std::uint8_t const> payload)
+{
+    SPDLOG_INFO("received ping frame");
+
+    auto frame = websocket_frame_generator{}.pong(payload);
+
+    SPDLOG_DEBUG("sending {} bytes", frame.size());
+    ssize_t nbytes = ::send(
+            conn.sockfd, frame.data().data(), static_cast<ssize_t>(frame.size()), /*flags=*/0);
+    if (nbytes == -1) {
+        SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
+        return false;
+    }
+
+    return true;
+}
+
+bool
+echo_server::on_websocket_close(connection& conn)
 {
     SPDLOG_INFO("received close frame");
     conn.conn_state = ConnectionState::WebSocketClosing;

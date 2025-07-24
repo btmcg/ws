@@ -37,15 +37,18 @@ private:
     bool on_http_request(connection&) const noexcept;
 
     /// Called when a websocket upgrade request detected
-    bool on_websocket_upgrade_request(connection&,
-            std::unordered_map<std::string, std::string> const& header_fields) const noexcept;
+    bool on_websocket_upgrade_request(
+            connection&, std::unordered_map<std::string, std::string> const& header_fields) const;
 
     /// Called when receiving from a websocket that is already connected
     /// \return \c false on error
-    bool on_websocket_frame(connection&) noexcept;
+    bool on_websocket_frame(connection&);
+
+    /// Called when a ping control frame received
+    bool on_websocket_ping(connection&, std::span<std::uint8_t const> payload);
 
     /// Called when a close frame received
-    bool on_websocket_close(connection&) noexcept;
+    bool on_websocket_close(connection&);
 
 private:
     bool validate_request_method_uri_and_version(std::string const&) const noexcept;
