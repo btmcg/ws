@@ -2,6 +2,8 @@ project('ws', 'cpp',
   version : '0.1.0',
   default_options : [
     'cpp_std=c++23',
+    'default_library=static',
+    'prefer_static=true',
     'warning_level=3',
     'werror=true',
 ])
@@ -74,10 +76,11 @@ add_project_arguments(cpp_args, language : 'cpp')
 # spdlog
 #
 spdlog_proj = subproject('spdlog', default_options: [
-    'tests=disabled',
-    'example=false', 
     'bench=false',
-    'install=false'
+    'default_library=static',
+    'example=false', 
+    'install=false',
+    'tests=disabled',
 ])
 spdlog_dep = spdlog_proj.get_variable('spdlog_dep')
 
@@ -86,7 +89,8 @@ spdlog_dep = spdlog_proj.get_variable('spdlog_dep')
 # catch2
 #
 catch2_proj = subproject('catch2', default_options: [
-    'tests=false'
+    'tests=false',
+    'default_library=static',
 ])
 catch2_dep = catch2_proj.get_variable('catch2_with_main_dep')
 
