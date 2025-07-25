@@ -44,7 +44,6 @@ addl_warning_flags = [
   '-fno-operator-names',
   '-Wcast-align',
   '-Wcast-qual',
-  '-Wctor-dtor-privacy',
   '-Wdisabled-optimization',
   '-Wempty-body',
   '-Wfloat-equal',
