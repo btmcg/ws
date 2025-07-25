@@ -2,7 +2,7 @@ project('ws', 'cpp',
   version : '0.1.0',
   default_options : [
     'b_lto=true',
-    'cpp_std=c++23',
+    'cpp_std=c++26',
     'default_library=static',
     'prefer_static=true',
     'warning_level=3',
