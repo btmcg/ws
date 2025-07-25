@@ -156,7 +156,7 @@ else
   warning('Catch2 not found, tests will not be built')
 endif
 
-# Add option to enable/disable tests
+# add option to enable/disable tests
 if get_option('enable_tests')
   if not catch2_dep.found()
     error('Tests enabled but Catch2 not found')
