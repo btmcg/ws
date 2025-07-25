@@ -1,5 +1,5 @@
 #include "frame.hpp"
-#include "websocket_frame_generator.hpp"
+#include "frame_generator.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <bit>  // std::byteswap
 #include <span> // std::byteswap
@@ -8,7 +8,7 @@
 namespace {
 
 /// help fn to convert string data into a uint8_t span as needed by
-/// the websocket_frame_generator
+/// the frame_generator
 template <typename T = std::uint8_t const>
 std::span<T>
 as_uint8_span(auto& str)
@@ -26,9 +26,11 @@ as_str(std::span<T> sp)
 } // namespace
 
 
-TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
+TEST_CASE("frame_generator", "[frame_generator]")
 {
-    using namespace ws;
+    using ws::OpCode;
+    using ws::ParseResult;
+
     static constexpr std::size_t UnmaskedHeaderSize = 2;
     static constexpr std::size_t MaskedHeaderSize = 6;
 
@@ -36,7 +38,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
     {
         SECTION("unmasked without payload")
         {
-            auto out_frame = websocket_frame_generator{}.ping();
+            auto out_frame = ws::frame_generator{}.ping();
 
             ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
@@ -53,7 +55,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("masked without payload")
         {
-            auto out_frame = websocket_frame_generator{}.ping({}, /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.ping({}, /*masked=*/true);
 
             ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
@@ -71,7 +73,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("unmasked with payload")
         {
             std::string const payload = "this is the payload";
-            auto out_frame = websocket_frame_generator{}.ping(as_uint8_span(payload));
+            auto out_frame = ws::frame_generator{}.ping(as_uint8_span(payload));
 
             ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
@@ -89,8 +91,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("masked with payload")
         {
             std::string const payload = "this is the payload";
-            auto out_frame
-                    = websocket_frame_generator{}.ping(as_uint8_span(payload), /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.ping(as_uint8_span(payload), /*masked=*/true);
 
             ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
@@ -111,7 +112,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
     {
         SECTION("unmasked without payload")
         {
-            auto out_frame = websocket_frame_generator{}.pong();
+            auto out_frame = ws::frame_generator{}.pong();
 
             ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
@@ -128,7 +129,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("masked without payload")
         {
-            auto out_frame = websocket_frame_generator{}.pong({}, /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.pong({}, /*masked=*/true);
 
             ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
@@ -146,7 +147,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("unmasked with payload")
         {
             std::string const payload = "this is the payload";
-            auto out_frame = websocket_frame_generator{}.pong(as_uint8_span(payload));
+            auto out_frame = ws::frame_generator{}.pong(as_uint8_span(payload));
 
             ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
@@ -164,8 +165,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("masked with payload")
         {
             std::string const payload = "this is the payload";
-            auto out_frame
-                    = websocket_frame_generator{}.pong(as_uint8_span(payload), /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.pong(as_uint8_span(payload), /*masked=*/true);
 
             ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
@@ -188,7 +188,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("unmasked, default status code")
         {
-            auto out_frame = websocket_frame_generator{}.close();
+            auto out_frame = ws::frame_generator{}.close();
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + sizeof(status_code));
 
             ws::frame frame;
@@ -212,7 +212,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("masked, default status code")
         {
-            auto out_frame = websocket_frame_generator{}.close(
+            auto out_frame = ws::frame_generator{}.close(
                     /*code=*/1000, /*reason=*/{}, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + sizeof(status_code));
 
@@ -237,7 +237,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("unmasked, custom status code, no reason")
         {
-            auto out_frame = websocket_frame_generator{}.close(1234);
+            auto out_frame = ws::frame_generator{}.close(1234);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + sizeof(status_code));
 
             ws::frame frame;
@@ -262,8 +262,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("masked, custom status code, no reason")
         {
-            auto out_frame
-                    = websocket_frame_generator{}.close(1234, /*reason=*/{}, /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.close(1234, /*reason=*/{}, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + sizeof(status_code));
 
             ws::frame frame;
@@ -289,7 +288,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("unmasked custom status code and reason")
         {
             std::string reason = "this is a test";
-            auto out_frame = websocket_frame_generator{}.close(5678, reason);
+            auto out_frame = ws::frame_generator{}.close(5678, reason);
             REQUIRE(out_frame.data().size()
                     == UnmaskedHeaderSize + sizeof(status_code) + reason.size());
 
@@ -323,7 +322,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("masked custom status code and reason")
         {
             std::string reason = "test";
-            auto out_frame = websocket_frame_generator{}.close(5678, reason, /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.close(5678, reason, /*masked=*/true);
             REQUIRE(out_frame.data().size()
                     == MaskedHeaderSize + sizeof(status_code) + reason.size());
 
@@ -359,7 +358,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
     {
         SECTION("unmasked empty payload with fin set")
         {
-            auto out_frame = websocket_frame_generator{}.text({});
+            auto out_frame = ws::frame_generator{}.text({});
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize);
 
             ws::frame frame;
@@ -379,7 +378,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("unmasked empty payload without fin set")
         {
-            auto out_frame = websocket_frame_generator{}.text({}, /*fin=*/false);
+            auto out_frame = ws::frame_generator{}.text({}, /*fin=*/false);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize);
 
             ws::frame frame;
@@ -399,7 +398,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("masked empty payload with fin set")
         {
-            auto out_frame = websocket_frame_generator{}.text({}, /*fin=*/true, /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.text({}, /*fin=*/true, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize);
 
             ws::frame frame;
@@ -419,7 +418,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("masked empty payload without fin set")
         {
-            auto out_frame = websocket_frame_generator{}.text({}, /*fin=*/false, /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.text({}, /*fin=*/false, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize);
 
             ws::frame frame;
@@ -440,7 +439,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("unmasked with fin set")
         {
             std::string text = "hello";
-            auto out_frame = websocket_frame_generator{}.text(text);
+            auto out_frame = ws::frame_generator{}.text(text);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + text.size());
 
             ws::frame frame;
@@ -462,7 +461,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("unmasked without fin")
         {
             std::string text = "hello";
-            auto out_frame = websocket_frame_generator{}.text(text, /*fin=*/false);
+            auto out_frame = ws::frame_generator{}.text(text, /*fin=*/false);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + text.size());
 
             ws::frame frame;
@@ -484,7 +483,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("masked with fin")
         {
             std::string text = "hello";
-            auto out_frame = websocket_frame_generator{}.text(text, /*fin=*/true, /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.text(text, /*fin=*/true, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + text.size());
 
             ws::frame frame;
@@ -506,7 +505,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("masked without fin")
         {
             std::string text = "hello";
-            auto out_frame = websocket_frame_generator{}.text(text, /*fin=*/false, /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.text(text, /*fin=*/false, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + text.size());
 
             ws::frame frame;
@@ -530,7 +529,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
     {
         SECTION("unmasked empty payload with fin set")
         {
-            auto out_frame = websocket_frame_generator{}.binary({});
+            auto out_frame = ws::frame_generator{}.binary({});
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize);
 
             ws::frame frame;
@@ -549,7 +548,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("unmasked empty payload without fin set")
         {
-            auto out_frame = websocket_frame_generator{}.binary({}, /*fin=*/false);
+            auto out_frame = ws::frame_generator{}.binary({}, /*fin=*/false);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize);
 
             ws::frame frame;
@@ -568,7 +567,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("masked empty payload with fin set")
         {
-            auto out_frame = websocket_frame_generator{}.binary({}, /*fin=*/true, /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.binary({}, /*fin=*/true, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize);
 
             ws::frame frame;
@@ -587,7 +586,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("masked empty payload without fin set")
         {
-            auto out_frame = websocket_frame_generator{}.binary({}, /*fin=*/false, /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.binary({}, /*fin=*/false, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize);
 
             ws::frame frame;
@@ -607,7 +606,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("default (with fin set)")
         {
             std::string data = "binary_data";
-            auto out_frame = websocket_frame_generator{}.binary(as_uint8_span(data));
+            auto out_frame = ws::frame_generator{}.binary(as_uint8_span(data));
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + data.size());
 
             ws::frame frame;
@@ -629,7 +628,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("unmasked without fin")
         {
             std::string data = "binary_data";
-            auto out_frame = websocket_frame_generator{}.binary(
+            auto out_frame = ws::frame_generator{}.binary(
                     as_uint8_span(data), /*fin=*/false, /*masked=*/false);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + data.size());
 
@@ -652,8 +651,8 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("masked with fin")
         {
             std::string data = "binary_data";
-            auto out_frame = websocket_frame_generator{}.binary(
-                    as_uint8_span(data), /*fin=*/true, /*masked=*/true);
+            auto out_frame
+                    = ws::frame_generator{}.binary(as_uint8_span(data), /*fin=*/true, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + data.size());
 
             ws::frame frame;
@@ -675,8 +674,8 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("masked without fin")
         {
             std::string data = "binary_data";
-            auto out_frame = websocket_frame_generator{}.binary(
-                    as_uint8_span(data), /*fin=*/false, /*masked=*/true);
+            auto out_frame
+                    = ws::frame_generator{}.binary(as_uint8_span(data), /*fin=*/false, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + data.size());
 
             ws::frame frame;
@@ -700,7 +699,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
     {
         SECTION("unmasked empty payload with fin set")
         {
-            auto out_frame = websocket_frame_generator{}.continuation({}, /*fin=*/true);
+            auto out_frame = ws::frame_generator{}.continuation({}, /*fin=*/true);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize);
 
             ws::frame frame;
@@ -719,7 +718,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("unmasked empty payload without fin set")
         {
-            auto out_frame = websocket_frame_generator{}.continuation({});
+            auto out_frame = ws::frame_generator{}.continuation({});
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize);
 
             ws::frame frame;
@@ -738,8 +737,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("masked empty payload with fin set")
         {
-            auto out_frame
-                    = websocket_frame_generator{}.continuation({}, /*fin=*/true, /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.continuation({}, /*fin=*/true, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize);
 
             ws::frame frame;
@@ -758,8 +756,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
 
         SECTION("masked empty payload without fin set")
         {
-            auto out_frame
-                    = websocket_frame_generator{}.continuation({}, /*fin=*/false, /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.continuation({}, /*fin=*/false, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize);
 
             ws::frame frame;
@@ -779,7 +776,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("default (without fin set)")
         {
             std::string data = "binary_data";
-            auto out_frame = websocket_frame_generator{}.continuation(as_uint8_span(data));
+            auto out_frame = ws::frame_generator{}.continuation(as_uint8_span(data));
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + data.size());
 
             ws::frame frame;
@@ -801,7 +798,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("unmasked without fin")
         {
             std::string data = "binary_data";
-            auto out_frame = websocket_frame_generator{}.continuation(
+            auto out_frame = ws::frame_generator{}.continuation(
                     as_uint8_span(data), /*fin=*/false, /*masked=*/false);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + data.size());
 
@@ -824,7 +821,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("masked with fin")
         {
             std::string data = "binary_data";
-            auto out_frame = websocket_frame_generator{}.continuation(
+            auto out_frame = ws::frame_generator{}.continuation(
                     as_uint8_span(data), /*fin=*/true, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + data.size());
 
@@ -847,7 +844,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         SECTION("masked without fin")
         {
             std::string data = "binary_data";
-            auto out_frame = websocket_frame_generator{}.continuation(
+            auto out_frame = ws::frame_generator{}.continuation(
                     as_uint8_span(data), /*fin=*/false, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + data.size());
 
@@ -878,10 +875,10 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             std::string const part3 = "into three fragments";
 
             // generate frames
-            auto frame1 = websocket_frame_generator{}.text(part1, /*fin=*/false, /*mask=*/true);
-            auto frame2 = websocket_frame_generator{}.continuation(
+            auto frame1 = ws::frame_generator{}.text(part1, /*fin=*/false, /*mask=*/true);
+            auto frame2 = ws::frame_generator{}.continuation(
                     as_uint8_span(part2), /*fin=*/false, /*mask=*/true);
-            auto frame3 = websocket_frame_generator{}.continuation(
+            auto frame3 = ws::frame_generator{}.continuation(
                     as_uint8_span(part3), /*fin=*/true, /*mask=*/true);
 
             // parse and verify each frame

@@ -6,7 +6,7 @@
 #include "../str_utils.hpp"
 #include "../frame.hpp"
 #include "../frame_fmt.hpp"
-#include "../websocket_frame_generator.hpp"
+#include "../frame_generator.hpp"
 #include <arpa/inet.h> // ::inet_ntop
 #include <fcntl.h>     // ::fcntl
 #include <netdb.h>
@@ -596,7 +596,7 @@ echo_server::on_websocket_ping(connection& conn, std::span<std::uint8_t const> p
 {
     SPDLOG_INFO("received ping frame");
 
-    auto frame = websocket_frame_generator{}.pong(payload);
+    auto frame = frame_generator{}.pong(payload);
 
     SPDLOG_DEBUG("sending {} bytes", frame.size());
     ssize_t nbytes = ::send(
@@ -626,7 +626,7 @@ echo_server::on_websocket_close(connection& conn)
     SPDLOG_INFO("received close frame");
     conn.conn_state = ConnectionState::WebSocketClosing;
 
-    auto frame = websocket_frame_generator{}.close();
+    auto frame = frame_generator{}.close();
 
     SPDLOG_DEBUG("sending {} bytes", frame.size());
     ssize_t nbytes = ::send(
@@ -648,7 +648,7 @@ echo_server::on_websocket_text_frame(connection& conn, std::string_view text_dat
         return true;
     }
 
-    auto frame = websocket_frame_generator{}.text(text_data);
+    auto frame = frame_generator{}.text(text_data);
 
     SPDLOG_DEBUG("sending {} bytes", frame.size());
     ssize_t nbytes = ::send(
@@ -669,7 +669,7 @@ echo_server::on_websocket_binary_frame(connection& conn, std::span<std::uint8_t 
         return true;
     }
 
-    auto frame = websocket_frame_generator{}.binary(payload);
+    auto frame = frame_generator{}.binary(payload);
 
     SPDLOG_DEBUG("sending {} bytes", frame.size());
     ssize_t nbytes = ::send(

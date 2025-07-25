@@ -1,4 +1,4 @@
-#include "websocket_frame_generator.hpp"
+#include "frame_generator.hpp"
 #include <bit>     // std::byteswap, std::endian
 #include <cstring> // std::memcpy
 #include <random>  // std::mt19937, std::random_device,
@@ -7,8 +7,8 @@
 
 namespace ws {
 
-websocket_frame_generator&
-websocket_frame_generator::text(std::string_view text, bool fin, bool mask)
+frame_generator&
+frame_generator::text(std::string_view text, bool fin, bool mask)
 {
     std::span<std::uint8_t const> payload(
             reinterpret_cast<std::uint8_t const*>(text.data()), text.size());
@@ -16,15 +16,15 @@ websocket_frame_generator::text(std::string_view text, bool fin, bool mask)
     return *this;
 }
 
-websocket_frame_generator&
-websocket_frame_generator::binary(std::span<std::uint8_t const> data, bool fin, bool mask)
+frame_generator&
+frame_generator::binary(std::span<std::uint8_t const> data, bool fin, bool mask)
 {
     build_frame(OpCode::Binary, data, fin, mask);
     return *this;
 }
 
-websocket_frame_generator&
-websocket_frame_generator::ping(std::span<std::uint8_t const> payload, bool mask)
+frame_generator&
+frame_generator::ping(std::span<std::uint8_t const> payload, bool mask)
 {
     if (payload.size() > 125) {
         throw std::invalid_argument("Ping payload cannot exceed 125 bytes");
@@ -33,8 +33,8 @@ websocket_frame_generator::ping(std::span<std::uint8_t const> payload, bool mask
     return *this;
 }
 
-websocket_frame_generator&
-websocket_frame_generator::pong(std::span<std::uint8_t const> payload, bool mask)
+frame_generator&
+frame_generator::pong(std::span<std::uint8_t const> payload, bool mask)
 {
     if (payload.size() > 125) {
         throw std::invalid_argument("Pong payload cannot exceed 125 bytes");
@@ -43,8 +43,8 @@ websocket_frame_generator::pong(std::span<std::uint8_t const> payload, bool mask
     return *this;
 }
 
-websocket_frame_generator&
-websocket_frame_generator::close(std::uint16_t code, std::string_view reason, bool mask)
+frame_generator&
+frame_generator::close(std::uint16_t code, std::string_view reason, bool mask)
 {
     std::vector<std::uint8_t> close_payload;
 
@@ -64,40 +64,40 @@ websocket_frame_generator::close(std::uint16_t code, std::string_view reason, bo
     return *this;
 }
 
-websocket_frame_generator&
-websocket_frame_generator::continuation(std::span<std::uint8_t const> data, bool fin, bool mask)
+frame_generator&
+frame_generator::continuation(std::span<std::uint8_t const> data, bool fin, bool mask)
 {
     build_frame(OpCode::Continuation, data, fin, mask);
     return *this;
 }
 
 std::span<std::uint8_t const>
-websocket_frame_generator::data() const noexcept
+frame_generator::data() const noexcept
 {
     return std::span<std::uint8_t const>(frame_data_);
 }
 
 std::size_t
-websocket_frame_generator::size() const noexcept
+frame_generator::size() const noexcept
 {
     return frame_data_.size();
 }
 
-websocket_frame_generator&
-websocket_frame_generator::reset() noexcept
+frame_generator&
+frame_generator::reset() noexcept
 {
     frame_data_.clear();
     return *this;
 }
 
 std::vector<std::uint8_t>
-websocket_frame_generator::take_data() noexcept
+frame_generator::take_data() noexcept
 {
     return std::move(frame_data_);
 }
 
 void
-websocket_frame_generator::build_frame(
+frame_generator::build_frame(
         OpCode opcode, std::span<std::uint8_t const> payload, bool fin, bool mask)
 {
     frame_data_.clear();
@@ -162,7 +162,7 @@ websocket_frame_generator::build_frame(
 }
 
 void
-websocket_frame_generator::write_be16(std::uint8_t* data, std::uint16_t value) noexcept
+frame_generator::write_be16(std::uint8_t* data, std::uint16_t value) noexcept
 {
     if constexpr (std::endian::native == std::endian::little) {
         value = std::byteswap(value);
@@ -171,7 +171,7 @@ websocket_frame_generator::write_be16(std::uint8_t* data, std::uint16_t value) n
 }
 
 void
-websocket_frame_generator::write_be64(std::uint8_t* data, std::uint64_t value) noexcept
+frame_generator::write_be64(std::uint8_t* data, std::uint64_t value) noexcept
 {
     if constexpr (std::endian::native == std::endian::little) {
         value = std::byteswap(value);
@@ -180,7 +180,7 @@ websocket_frame_generator::write_be64(std::uint8_t* data, std::uint64_t value) n
 }
 
 std::array<std::uint8_t, 4>
-websocket_frame_generator::generate_mask() noexcept
+frame_generator::generate_mask() noexcept
 {
     static thread_local std::random_device rd;
     static thread_local std::mt19937 gen(rd());
@@ -190,7 +190,7 @@ websocket_frame_generator::generate_mask() noexcept
 }
 
 void
-websocket_frame_generator::apply_mask(
+frame_generator::apply_mask(
         std::uint8_t* payload, std::size_t length, std::array<std::uint8_t, 4> const& mask) noexcept
 {
     for (std::size_t i = 0; i < length; ++i) {
