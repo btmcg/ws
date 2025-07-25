@@ -867,4 +867,40 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             REQUIRE(as_str(payload) == data);
         }
     }
+
+    SECTION("fragmentation")
+    {
+        SECTION("fragmented text message - 3 parts")
+        {
+            std::string const full_text = "This message will be split into three fragments";
+            std::string const part1 = "This message ";
+            std::string const part2 = "will be split ";
+            std::string const part3 = "into three fragments";
+
+            // generate frames
+            auto frame1 = websocket_frame_generator{}.text(part1, /*fin=*/false, /*mask=*/true);
+            auto frame2 = websocket_frame_generator{}.continuation(
+                    as_uint8_span(part2), /*fin=*/false, /*mask=*/true);
+            auto frame3 = websocket_frame_generator{}.continuation(
+                    as_uint8_span(part3), /*fin=*/true, /*mask=*/true);
+
+            // parse and verify each frame
+            websocket_frame parsed_frame1, parsed_frame2, parsed_frame3;
+
+            REQUIRE(parsed_frame1.parse_from_buffer(frame1.data().data(), frame1.size())
+                    == ParseResult::Success);
+            REQUIRE(parsed_frame2.parse_from_buffer(frame2.data().data(), frame2.size())
+                    == ParseResult::Success);
+            REQUIRE(parsed_frame3.parse_from_buffer(frame3.data().data(), frame3.size())
+                    == ParseResult::Success);
+
+            // Verify frame properties
+            REQUIRE_FALSE(parsed_frame1.fin());
+            REQUIRE(parsed_frame1.op_code() == OpCode::Text);
+            REQUIRE_FALSE(parsed_frame2.fin());
+            REQUIRE(parsed_frame2.op_code() == OpCode::Continuation);
+            REQUIRE(parsed_frame3.fin());
+            REQUIRE(parsed_frame3.op_code() == OpCode::Continuation);
+        }
+    }
 }

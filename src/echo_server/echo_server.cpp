@@ -256,6 +256,7 @@ echo_server::on_incoming_data(connection& conn) noexcept
         return false;
     }
     conn.buf.bytes_written(nbytes);
+    conn.buf.shift();
 
     // client disconnected
     if (nbytes == 0) {
