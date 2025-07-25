@@ -20,8 +20,8 @@ inc_dir = include_directories('src')
 src_files = files(
   'src/util/base64_codec.cpp',
   'src/util/sha1.cpp',
-  'src/frame.cpp',
-  'src/frame_generator.cpp',
+  'src/ws/frame.cpp',
+  'src/ws/frame_generator.cpp',
 )
 
 # main executable source files
@@ -120,12 +120,12 @@ executable('echo_server',
 if catch2_dep.found()
   # Test files for each class
   test_files = [
-    'tests/test_str_utils.cpp', 
-    'tests/test_base64_codec.cpp',
-    'tests/test_byte_buffer.cpp',
-    'tests/test_sha1.cpp',
-    'tests/test_frame.cpp',
-    'tests/test_frame_generator.cpp',
+    'tests/util/test_base64_codec.cpp',
+    'tests/util/test_byte_buffer.cpp',
+    'tests/util/test_sha1.cpp',
+    'tests/util/test_str_utils.cpp', 
+    'tests/ws/test_frame.cpp',
+    'tests/ws/test_frame_generator.cpp',
   ]
 
   # Create test executables for each test file

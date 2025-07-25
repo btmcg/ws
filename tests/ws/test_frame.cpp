@@ -1,4 +1,4 @@
-#include "frame.hpp"
+#include "ws/frame.hpp"
 #include <catch2/catch_test_macros.hpp>
 
 namespace ws::test {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "connection.hpp"
+#include "ws/connection.hpp"
 #include <cstdint>
 #include <string>
 #include <unordered_map>
