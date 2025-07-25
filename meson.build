@@ -69,6 +69,13 @@ if compiler.get_id() == 'gcc'
   ]
 endif
 
+if get_option('buildtype') == 'release'
+  cpp_args += [
+    '-march=native',
+    '-mtune=native',
+  ]
+endif
+
 add_project_arguments(cpp_args, language : 'cpp')
 
 
