@@ -1,13 +1,13 @@
 #include "frame.hpp"
 #include <catch2/catch_test_macros.hpp>
 
+namespace ws::test {
 
 TEST_CASE("basic_websocket_header", "[basic_websocket_header]")
 {
-
     SECTION("test defaults")
     {
-        ws::basic_websocket_header header{};
+        basic_websocket_header header{};
         REQUIRE_FALSE(header.fin());
         REQUIRE_FALSE(header.rsv1());
         REQUIRE_FALSE(header.rsv2());
@@ -55,3 +55,5 @@ TEST_CASE("frame", "[frame]")
         REQUIRE_FALSE(frame.get_text_payload());
     }
 }
+
+} // namespace test

@@ -4,6 +4,8 @@
 #include <cstring> // std::memcmp, std::memcpy
 
 
+namespace ws::test {
+
 TEST_CASE("basic usage", "[byte_buffer]")
 {
     byte_buffer<10> buf;
@@ -120,3 +122,5 @@ TEST_CASE("basic usage", "[byte_buffer]")
         REQUIRE(buf.read_ptr() == buf.write_ptr());
     }
 }
+
+} // namespace test

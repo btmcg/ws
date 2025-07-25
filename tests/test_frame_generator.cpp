@@ -5,7 +5,7 @@
 #include <span> // std::byteswap
 
 
-namespace {
+namespace ws::test {
 
 /// help fn to convert string data into a uint8_t span as needed by
 /// the frame_generator
@@ -23,14 +23,9 @@ as_str(std::span<T> sp)
     return std::string(reinterpret_cast<char const*>(sp.data()), sp.size());
 }
 
-} // namespace
-
 
 TEST_CASE("frame_generator", "[frame_generator]")
 {
-    using ws::OpCode;
-    using ws::ParseResult;
-
     static constexpr std::size_t UnmaskedHeaderSize = 2;
     static constexpr std::size_t MaskedHeaderSize = 6;
 
@@ -651,8 +646,8 @@ TEST_CASE("frame_generator", "[frame_generator]")
         SECTION("masked with fin")
         {
             std::string data = "binary_data";
-            auto out_frame
-                    = ws::frame_generator{}.binary(as_uint8_span(data), /*fin=*/true, /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.binary(
+                    as_uint8_span(data), /*fin=*/true, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + data.size());
 
             ws::frame frame;
@@ -674,8 +669,8 @@ TEST_CASE("frame_generator", "[frame_generator]")
         SECTION("masked without fin")
         {
             std::string data = "binary_data";
-            auto out_frame
-                    = ws::frame_generator{}.binary(as_uint8_span(data), /*fin=*/false, /*masked=*/true);
+            auto out_frame = ws::frame_generator{}.binary(
+                    as_uint8_span(data), /*fin=*/false, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + data.size());
 
             ws::frame frame;
@@ -901,3 +896,5 @@ TEST_CASE("frame_generator", "[frame_generator]")
         }
     }
 }
+
+} // namespace test

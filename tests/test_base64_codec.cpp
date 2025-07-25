@@ -2,6 +2,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 
+namespace ws::test {
+
 TEST_CASE("basic usage", "[base64_codec]")
 {
     SECTION("to_base64")
@@ -23,3 +25,4 @@ TEST_CASE("basic usage", "[base64_codec]")
     }
 }
 
+} // namespace test
