@@ -182,7 +182,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         }
     }
 
-    SECTION("close");
+    SECTION("close")
     {
         std::uint16_t status_code = 0;
 
@@ -355,7 +355,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         }
     }
 
-    SECTION("text");
+    SECTION("text")
     {
         SECTION("unmasked empty payload with fin set")
         {
@@ -526,7 +526,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         }
     }
 
-    SECTION("binary");
+    SECTION("binary")
     {
         SECTION("unmasked empty payload with fin set")
         {
@@ -696,7 +696,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         }
     }
 
-    SECTION("continuation");
+    SECTION("continuation")
     {
         SECTION("unmasked empty payload with fin set")
         {
