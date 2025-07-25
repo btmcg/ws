@@ -1,7 +1,7 @@
 #pragma once
 
-#include "byte_buffer.hpp"
 #include "frame.hpp"
+#include "util/byte_buffer.hpp"
 #include <arpa/inet.h> // INET_ADDRSTRLEN
 #include <cstdint>
 

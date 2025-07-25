@@ -897,4 +897,4 @@ TEST_CASE("frame_generator", "[frame_generator]")
     }
 }
 
-} // namespace test
+} // namespace ws::test

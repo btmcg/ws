@@ -1,4 +1,4 @@
-#include "byte_buffer.hpp"
+#include "util/byte_buffer.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <cstdint>
 #include <cstring> // std::memcmp, std::memcpy
@@ -123,4 +123,4 @@ TEST_CASE("basic usage", "[byte_buffer]")
     }
 }
 
-} // namespace test
+} // namespace ws::test

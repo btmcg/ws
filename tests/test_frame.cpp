@@ -56,4 +56,4 @@ TEST_CASE("frame", "[frame]")
     }
 }
 
-} // namespace test
+} // namespace ws::test

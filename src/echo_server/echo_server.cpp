@@ -1,12 +1,12 @@
 #include "echo_server.hpp"
-#include "../base64_codec.hpp"
-#include "../connection.hpp"
-#include "../connection_fmt.hpp"
-#include "../sha1.hpp"
-#include "../str_utils.hpp"
-#include "../frame.hpp"
-#include "../frame_fmt.hpp"
-#include "../frame_generator.hpp"
+#include "connection.hpp"
+#include "connection_fmt.hpp"
+#include "frame.hpp"
+#include "frame_fmt.hpp"
+#include "frame_generator.hpp"
+#include "util/base64_codec.hpp"
+#include "util/sha1.hpp"
+#include "util/str_utils.hpp"
 #include <arpa/inet.h> // ::inet_ntop
 #include <fcntl.h>     // ::fcntl
 #include <netdb.h>

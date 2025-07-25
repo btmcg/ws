@@ -18,8 +18,8 @@ inc_dir = include_directories('src')
 
 # find all C++ source files in src directory
 src_files = files(
-  'src/base64_codec.cpp',
-  'src/sha1.cpp',
+  'src/util/base64_codec.cpp',
+  'src/util/sha1.cpp',
   'src/frame.cpp',
   'src/frame_generator.cpp',
 )

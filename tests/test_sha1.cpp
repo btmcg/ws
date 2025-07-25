@@ -1,4 +1,4 @@
-#include "sha1.hpp"
+#include "util/sha1.hpp"
 #include <catch2/catch_test_macros.hpp>
 
 
@@ -69,4 +69,4 @@ TEST_CASE("SHA-1 digest properties", "[sha1]")
     }
 }
 
-} // namespace test
+} // namespace ws::test

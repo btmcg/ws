@@ -1,6 +1,8 @@
 #include <print>
 
-int main() {
+int
+main()
+{
     std::println("hello world");
     return 0;
 }
