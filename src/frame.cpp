@@ -1,4 +1,4 @@
-#include "websocket_frame.hpp"
+#include "frame.hpp"
 #include <bit>     // std::byteswap, std::endian
 #include <cstring> // std::memcpy, std::memset
 
@@ -49,7 +49,7 @@ basic_websocket_header::payload_len_indicator() const noexcept
 /**********************************************************************/
 
 void
-websocket_frame::reset() noexcept
+frame::reset() noexcept
 {
     fin_ = false;
     rsv1_ = rsv2_ = rsv3_ = false;
@@ -63,7 +63,7 @@ websocket_frame::reset() noexcept
 }
 
 ParseResult
-websocket_frame::parse_from_buffer(std::uint8_t const* data, std::size_t avail) noexcept
+frame::parse_from_buffer(std::uint8_t const* data, std::size_t avail) noexcept
 {
     reset();
 
@@ -154,80 +154,80 @@ websocket_frame::parse_from_buffer(std::uint8_t const* data, std::size_t avail) 
 }
 
 bool
-websocket_frame::fin() const noexcept
+frame::fin() const noexcept
 {
     return fin_;
 }
 
 bool
-websocket_frame::rsv1() const noexcept
+frame::rsv1() const noexcept
 {
     return rsv1_;
 }
 
 bool
-websocket_frame::rsv2() const noexcept
+frame::rsv2() const noexcept
 {
     return rsv2_;
 }
 
 bool
-websocket_frame::rsv3() const noexcept
+frame::rsv3() const noexcept
 {
     return rsv3_;
 }
 
 OpCode
-websocket_frame::op_code() const noexcept
+frame::op_code() const noexcept
 {
     return op_code_;
 }
 
 bool
-websocket_frame::masked() const noexcept
+frame::masked() const noexcept
 {
     return masked_;
 }
 
 std::uint64_t
-websocket_frame::payload_len() const noexcept
+frame::payload_len() const noexcept
 {
     return payload_len_;
 }
 
 std::size_t
-websocket_frame::header_size() const noexcept
+frame::header_size() const noexcept
 {
     return header_size_;
 }
 
 bool
-websocket_frame::valid() const noexcept
+frame::valid() const noexcept
 {
     return valid_;
 }
 
 std::span<std::uint8_t const, 4>
-websocket_frame::masking_key() const noexcept
+frame::masking_key() const noexcept
 {
     return std::span<std::uint8_t const, 4>(masking_key_, 4);
 }
 
 std::uint64_t
-websocket_frame::total_size() const noexcept
+frame::total_size() const noexcept
 {
     return header_size_ + payload_len_;
 }
 
 
 std::span<std::uint8_t const>
-websocket_frame::get_payload_data() const noexcept
+frame::get_payload_data() const noexcept
 {
     return std::span<std::uint8_t const>(payload_data_);
 }
 
 std::span<std::uint8_t const>
-websocket_frame::get_raw_payload_data() const noexcept
+frame::get_raw_payload_data() const noexcept
 {
     // This would require storing the original masked data separately. For now, we only store the
     // unmasked version
@@ -235,7 +235,7 @@ websocket_frame::get_raw_payload_data() const noexcept
 }
 
 std::optional<std::string>
-websocket_frame::get_text_payload() const
+frame::get_text_payload() const
 {
     if (!valid_ || op_code_ != OpCode::Text) {
         return std::nullopt;
@@ -246,7 +246,7 @@ websocket_frame::get_text_payload() const
 }
 
 bool
-websocket_frame::is_valid_frame() const noexcept
+frame::is_valid_frame() const noexcept
 {
     // check reserved bits (RSV1-3 must be 0 unless extensions are negotiated)
     if (rsv1_ || rsv2_ || rsv3_) {
@@ -280,7 +280,7 @@ websocket_frame::is_valid_frame() const noexcept
 }
 
 std::uint16_t
-websocket_frame::read_be16(const std::uint8_t* data) noexcept
+frame::read_be16(const std::uint8_t* data) noexcept
 {
     std::uint16_t value;
     std::memcpy(&value, data, sizeof(value));
@@ -291,7 +291,7 @@ websocket_frame::read_be16(const std::uint8_t* data) noexcept
 }
 
 std::uint64_t
-websocket_frame::read_be64(const std::uint8_t* data) noexcept
+frame::read_be64(const std::uint8_t* data) noexcept
 {
     std::uint64_t value;
     std::memcpy(&value, data, sizeof(value));

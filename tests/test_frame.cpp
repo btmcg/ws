@@ -1,36 +1,33 @@
-#include "websocket_frame.hpp"
+#include "frame.hpp"
 #include <catch2/catch_test_macros.hpp>
 
 
 TEST_CASE("basic_websocket_header", "[basic_websocket_header]")
 {
-    using namespace ws;
 
     SECTION("test defaults")
     {
-        basic_websocket_header header{};
+        ws::basic_websocket_header header{};
         REQUIRE_FALSE(header.fin());
         REQUIRE_FALSE(header.rsv1());
         REQUIRE_FALSE(header.rsv2());
         REQUIRE_FALSE(header.rsv3());
-        REQUIRE(header.op_code() == OpCode::Continuation);
+        REQUIRE(header.op_code() == ws::OpCode::Continuation);
         REQUIRE_FALSE(header.masked());
         REQUIRE(header.payload_len_indicator() == 0);
     }
 }
 
-TEST_CASE("websocket_frame", "[websocket_frame]")
+TEST_CASE("frame", "[frame]")
 {
-    using namespace ws;
-
     SECTION("test defaults and reset")
     {
-        websocket_frame frame;
+        ws::frame frame;
         REQUIRE_FALSE(frame.fin());
         REQUIRE_FALSE(frame.rsv1());
         REQUIRE_FALSE(frame.rsv2());
         REQUIRE_FALSE(frame.rsv3());
-        REQUIRE(frame.op_code() == OpCode::Continuation);
+        REQUIRE(frame.op_code() == ws::OpCode::Continuation);
         REQUIRE_FALSE(frame.masked());
         REQUIRE(frame.payload_len() == 0);
         REQUIRE(frame.header_size() == 0);
@@ -46,7 +43,7 @@ TEST_CASE("websocket_frame", "[websocket_frame]")
         REQUIRE_FALSE(frame.rsv1());
         REQUIRE_FALSE(frame.rsv2());
         REQUIRE_FALSE(frame.rsv3());
-        REQUIRE(frame.op_code() == OpCode::Continuation);
+        REQUIRE(frame.op_code() == ws::OpCode::Continuation);
         REQUIRE_FALSE(frame.masked());
         REQUIRE(frame.payload_len() == 0);
         REQUIRE(frame.header_size() == 0);

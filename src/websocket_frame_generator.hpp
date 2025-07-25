@@ -1,6 +1,6 @@
 #pragma once
 
-#include "websocket_frame.hpp"
+#include "frame.hpp"
 #include <span>
 #include <string_view>
 #include <vector>

@@ -1,4 +1,4 @@
-#include "websocket_frame.hpp"
+#include "frame.hpp"
 #include "websocket_frame_generator.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <bit>  // std::byteswap
@@ -38,7 +38,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         {
             auto out_frame = websocket_frame_generator{}.ping();
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -55,7 +55,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         {
             auto out_frame = websocket_frame_generator{}.ping({}, /*masked=*/true);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -73,7 +73,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             std::string const payload = "this is the payload";
             auto out_frame = websocket_frame_generator{}.ping(as_uint8_span(payload));
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -92,7 +92,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame
                     = websocket_frame_generator{}.ping(as_uint8_span(payload), /*masked=*/true);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -113,7 +113,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         {
             auto out_frame = websocket_frame_generator{}.pong();
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -130,7 +130,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
         {
             auto out_frame = websocket_frame_generator{}.pong({}, /*masked=*/true);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -148,7 +148,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             std::string const payload = "this is the payload";
             auto out_frame = websocket_frame_generator{}.pong(as_uint8_span(payload));
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -167,7 +167,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame
                     = websocket_frame_generator{}.pong(as_uint8_span(payload), /*masked=*/true);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -191,7 +191,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.close();
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + sizeof(status_code));
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -216,7 +216,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
                     /*code=*/1000, /*reason=*/{}, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + sizeof(status_code));
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -240,7 +240,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.close(1234);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + sizeof(status_code));
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -266,7 +266,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
                     = websocket_frame_generator{}.close(1234, /*reason=*/{}, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + sizeof(status_code));
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -293,7 +293,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             REQUIRE(out_frame.data().size()
                     == UnmaskedHeaderSize + sizeof(status_code) + reason.size());
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -327,7 +327,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             REQUIRE(out_frame.data().size()
                     == MaskedHeaderSize + sizeof(status_code) + reason.size());
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -362,7 +362,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.text({});
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -382,7 +382,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.text({}, /*fin=*/false);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE_FALSE(frame.fin());
@@ -402,7 +402,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.text({}, /*fin=*/true, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -422,7 +422,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.text({}, /*fin=*/false, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE_FALSE(frame.fin());
@@ -443,7 +443,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.text(text);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + text.size());
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -465,7 +465,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.text(text, /*fin=*/false);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + text.size());
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE_FALSE(frame.fin());
@@ -487,7 +487,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.text(text, /*fin=*/true, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + text.size());
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -509,7 +509,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.text(text, /*fin=*/false, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + text.size());
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE_FALSE(frame.fin());
@@ -533,7 +533,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.binary({});
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -552,7 +552,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.binary({}, /*fin=*/false);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE_FALSE(frame.fin());
@@ -571,7 +571,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.binary({}, /*fin=*/true, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -590,7 +590,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.binary({}, /*fin=*/false, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE_FALSE(frame.fin());
@@ -610,7 +610,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.binary(as_uint8_span(data));
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + data.size());
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -633,7 +633,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
                     as_uint8_span(data), /*fin=*/false, /*masked=*/false);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + data.size());
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE_FALSE(frame.fin());
@@ -656,7 +656,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
                     as_uint8_span(data), /*fin=*/true, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + data.size());
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -679,7 +679,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
                     as_uint8_span(data), /*fin=*/false, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + data.size());
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE_FALSE(frame.fin());
@@ -703,7 +703,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.continuation({}, /*fin=*/true);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -722,7 +722,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.continuation({});
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE_FALSE(frame.fin());
@@ -742,7 +742,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
                     = websocket_frame_generator{}.continuation({}, /*fin=*/true, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -762,7 +762,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
                     = websocket_frame_generator{}.continuation({}, /*fin=*/false, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize);
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE_FALSE(frame.fin());
@@ -782,7 +782,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
             auto out_frame = websocket_frame_generator{}.continuation(as_uint8_span(data));
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + data.size());
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE_FALSE(frame.fin());
@@ -805,7 +805,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
                     as_uint8_span(data), /*fin=*/false, /*masked=*/false);
             REQUIRE(out_frame.data().size() == UnmaskedHeaderSize + data.size());
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE_FALSE(frame.fin());
@@ -828,7 +828,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
                     as_uint8_span(data), /*fin=*/true, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + data.size());
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE(frame.fin());
@@ -851,7 +851,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
                     as_uint8_span(data), /*fin=*/false, /*masked=*/true);
             REQUIRE(out_frame.data().size() == MaskedHeaderSize + data.size());
 
-            websocket_frame frame;
+            ws::frame frame;
             REQUIRE(frame.parse_from_buffer(out_frame.data().data(), out_frame.data().size())
                     == ParseResult::Success);
             REQUIRE_FALSE(frame.fin());
@@ -885,7 +885,7 @@ TEST_CASE("websocket_frame_generator", "[websocket_frame_generator]")
                     as_uint8_span(part3), /*fin=*/true, /*mask=*/true);
 
             // parse and verify each frame
-            websocket_frame parsed_frame1, parsed_frame2, parsed_frame3;
+            ws::frame parsed_frame1, parsed_frame2, parsed_frame3;
 
             REQUIRE(parsed_frame1.parse_from_buffer(frame1.data().data(), frame1.size())
                     == ParseResult::Success);

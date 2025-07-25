@@ -4,8 +4,8 @@
 #include "../connection_fmt.hpp"
 #include "../sha1.hpp"
 #include "../str_utils.hpp"
-#include "../websocket_frame.hpp"
-#include "../websocket_frame_fmt.hpp"
+#include "../frame.hpp"
+#include "../frame_fmt.hpp"
 #include "../websocket_frame_generator.hpp"
 #include <arpa/inet.h> // ::inet_ntop
 #include <fcntl.h>     // ::fcntl
@@ -528,7 +528,7 @@ echo_server::on_websocket_frame(connection& conn)
 {
     SPDLOG_DEBUG("on_websocket_frame: bytes_unread={}", conn.buf.bytes_unread());
 
-    websocket_frame frame;
+    ws::frame frame;
     ParseResult result = frame.parse_from_buffer(conn.buf.read_ptr(), conn.buf.bytes_unread());
 
     switch (result) {

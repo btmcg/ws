@@ -47,7 +47,7 @@ struct basic_websocket_header
 } __attribute__((packed));
 
 /// Parsed WebSocket frame information
-class websocket_frame
+class frame
 {
 private:
     bool fin_ = false;
@@ -63,7 +63,7 @@ private:
     std::vector<std::uint8_t> payload_data_; // store the actual payload data
 
 public:
-    websocket_frame() = default;
+    frame() = default;
 
     /// reset frame to initial state
     void reset() noexcept;

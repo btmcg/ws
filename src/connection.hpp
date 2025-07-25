@@ -1,7 +1,7 @@
 #pragma once
 
 #include "byte_buffer.hpp"
-#include "websocket_frame.hpp"
+#include "frame.hpp"
 #include <arpa/inet.h> // INET_ADDRSTRLEN
 #include <cstdint>
 
@@ -35,12 +35,12 @@ struct connection
 {
     int sockfd;
     byte_buffer<BufferSize> buf;
-    websocket_frame current_frame;
+    frame current_frame;
     char ip[INET_ADDRSTRLEN];
     std::uint16_t port = 0;
 
     ConnectionState conn_state = ConnectionState::Undefined;
-    ParseState parse_state = ParseState::Undefined;
+    ParseState parse_state = ParseState::ReadingHeader;
     std::uint64_t bytes_needed = 2; // start with basic header
     std::uint64_t payload_bytes_read = 0;
 };

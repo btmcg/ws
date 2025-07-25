@@ -1,6 +1,6 @@
 #pragma once
 
-#include "websocket_frame.hpp"
+#include "frame.hpp"
 #include <format>
 #include <ranges> // std::ranges::copy
 #include <string_view>
