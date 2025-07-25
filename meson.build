@@ -16,22 +16,23 @@ fs = import('fs')
 # include directories
 inc_dir = include_directories('src')
 
-# find all C++ source files in src directory
-src_files = files(
+src_util_files = files(
   'src/util/base64_codec.cpp',
   'src/util/sha1.cpp',
+)
+
+src_ws_files = files(
   'src/ws/frame.cpp',
   'src/ws/frame_generator.cpp',
 )
 
-# main executable source files
-main_files = src_files + files('src/main.cpp')
-
-# echo server source files
-echo_server_files = files(
+src_echo_server_files = files(
   'src/echo_server/echo_server.cpp',
   'src/echo_server/main.cpp',
 )
+
+# main executable source files
+src_main_files = files('src/main.cpp')
 
 cpp_args = [
   # this allows the usage of SPDLOG_TRACE
@@ -97,22 +98,27 @@ catch2_dep = catch2_proj.get_variable('catch2_with_main_dep')
 
 
 # define the main executable
-executable('ws',
-  sources : main_files,
+executable('ws-test',
+  sources : src_main_files,
   include_directories : inc_dir,
   dependencies : [spdlog_dep],
   install : true)
 
-ws_lib = static_library('ws_lib',
-  sources : src_files,
+ws_lib = static_library('ws',
+  sources : src_ws_files,
+  include_directories : inc_dir,
+  dependencies : [spdlog_dep])
+
+util_lib = static_library('util',
+  sources : src_util_files,
   include_directories : inc_dir,
   dependencies : [spdlog_dep])
 
 # define the echo server executable
 executable('echo_server',
-  sources : echo_server_files,
+  sources : src_echo_server_files,
   include_directories : inc_dir,
-  link_with : ws_lib,
+  link_with : [util_lib, ws_lib],
   dependencies : [spdlog_dep],
   install : true)
 
@@ -135,7 +141,7 @@ if catch2_dep.found()
     test_exe = executable(test_name,
       sources : [test_file],
       include_directories : inc_dir,
-      link_with : ws_lib,
+      link_with : [util_lib, ws_lib],
       dependencies : [catch2_dep, spdlog_dep],
       build_by_default : false)
 
@@ -146,7 +152,7 @@ if catch2_dep.found()
   all_test_exe = executable('all_tests',
     sources : test_files,
     include_directories : inc_dir, 
-    link_with : ws_lib,
+    link_with : [util_lib, ws_lib],
     dependencies : [catch2_dep, spdlog_dep],
     build_by_default : false)
 
