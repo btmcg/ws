@@ -249,6 +249,11 @@ echo_server::on_incoming_connection() noexcept
 bool
 echo_server::on_incoming_data(connection& conn) noexcept
 {
+    // shift once we're past the 75% mark of capacity
+    if (conn.buf.bytes_left() / conn.buf.capacity() < 0.25) {
+        conn.buf.shift();
+    }
+
     ssize_t const nbytes
             = ::recv(conn.sockfd, conn.buf.write_ptr(), conn.buf.bytes_left(), /*flags=*/0);
     if (nbytes == -1) {
@@ -256,7 +261,6 @@ echo_server::on_incoming_data(connection& conn) noexcept
         return false;
     }
     conn.buf.bytes_written(nbytes);
-    conn.buf.shift();
 
     // client disconnected
     if (nbytes == 0) {

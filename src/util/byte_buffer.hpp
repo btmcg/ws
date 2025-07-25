@@ -21,7 +21,6 @@ public:
     byte_buffer(byte_buffer const&) noexcept = delete;
     byte_buffer& operator=(byte_buffer const&) noexcept = delete;
 
-    // enable move operations
     byte_buffer(byte_buffer&&) noexcept;
     byte_buffer& operator=(byte_buffer&&) noexcept;
 
