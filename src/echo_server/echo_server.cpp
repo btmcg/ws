@@ -78,10 +78,6 @@ echo_server::echo_server(int port)
     hints.ai_family = AF_UNSPEC;     // ipv4 or ipv6
     hints.ai_socktype = SOCK_STREAM; // tcp
     hints.ai_flags = AI_PASSIVE;     // wildcard ip
-    hints.ai_protocol = 0;
-    hints.ai_canonname = nullptr;
-    hints.ai_addr = nullptr;
-    hints.ai_next = nullptr;
 
     // get local address
     addrinfo* result = nullptr;

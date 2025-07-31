@@ -24,10 +24,6 @@ main(int argc, char* argv[])
     hints.ai_family = AF_UNSPEC;     // ipv4 or ipv6
     hints.ai_socktype = SOCK_STREAM; // tcp
     hints.ai_flags = AI_PASSIVE;     // wildcard ip
-    // hints.ai_protocol = 0;
-    // hints.ai_canonname = nullptr;
-    // hints.ai_addr = nullptr;
-    // hints.ai_next = nullptr;
 
     // get local address
     addrinfo* result = nullptr;
@@ -47,13 +43,37 @@ main(int argc, char* argv[])
         SPDLOG_CRITICAL("connect: {}", std::strerror(errno));
     }
 
+    ::freeaddrinfo(result);
     SPDLOG_INFO("successfully connected");
 
-
     while (true) {
-
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(1000ms);
     }
     return EXIT_SUCCESS;
+}
+
+
+bool
+send_websocket_upgrade_request()
+{
+    std::string request
+            = "GET / HTTP/1.1"
+              "Host: localhost:8000"
+              "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:141.0) Gecko/20100101 Firefox/141.0"
+              "Accept: */*"
+              "Accept-Language: en-US,en;q=0.5"
+              "Accept-Encoding: gzip, deflate, br, zstd"
+              "Sec-WebSocket-Version: 13"
+              "Origin: null"
+              "Sec-WebSocket-Extensions: permessage-deflate"
+              "Sec-WebSocket-Key: wZsRzjw8tBLo+2Vruz472w=="
+              "Sec-GPC: 1"
+              "Connection: keep-alive, Upgrade"
+              "Sec-Fetch-Dest: empty"
+              "Sec-Fetch-Mode: websocket"
+              "Sec-Fetch-Site: cross-site"
+              "Pragma: no-cache"
+              "Cache-Control: no-cache"
+              "Upgrade: websocket";
 }
