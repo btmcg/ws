@@ -127,7 +127,7 @@ executable('echo_server',
   dependencies : [spdlog_dep],
   install : true)
 
-# Tests configuration
+# tests configuration
 if catch2_dep.found()
   # Test files for each class
   test_files = [
