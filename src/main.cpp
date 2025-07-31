@@ -53,6 +53,11 @@ main(int argc, char* argv[])
     return EXIT_SUCCESS;
 }
 
+std::string
+gen_sec_websocket_key()
+{
+}
+
 
 bool
 send_websocket_upgrade_request()
@@ -76,4 +81,11 @@ send_websocket_upgrade_request()
               "Pragma: no-cache"
               "Cache-Control: no-cache"
               "Upgrade: websocket";
+
+    // expected response
+    std::string response = "HTTP/1.1 101 Switching Protocols"
+                           "Upgrade: websocket"
+                           "Connection: Upgrade"
+                           "Sec-WebSocket-Accept: cemlTOAnAhLvbZDQEKgJMBSF0D4=";
 }
+
