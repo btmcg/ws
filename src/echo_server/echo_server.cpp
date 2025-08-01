@@ -550,49 +550,32 @@ echo_server::on_websocket_frame(connection& conn)
             frame.fin(), frame.op_code(), frame.masked(), frame.payload_len(), frame.header_size());
 
     switch (frame.op_code()) {
-        case OpCode::Text: {
-            conn.current_frame_type = OpCode::Text;
-            auto payload = frame.get_text_payload();
-            if (!payload) {
-                SPDLOG_ERROR("received text frame with bad payload");
-            } else {
-                on_websocket_text_frame(conn, payload.value());
-            }
-        } break;
-
-        case OpCode::Binary: {
-            conn.current_frame_type = OpCode::Binary;
-            on_websocket_binary_frame(conn, frame.get_payload_data());
-        } break;
-
-        case OpCode::Continuation: {
-            // TODO
-        } break;
-
         case OpCode::Close: {
             on_websocket_close(conn);
+            conn.buf.bytes_read(frame.total_size());
         } break;
 
         case OpCode::Ping: {
             on_websocket_ping(conn, frame.get_payload_data());
+            conn.buf.bytes_read(frame.total_size());
         } break;
 
         case OpCode::Pong: {
             on_websocket_pong(conn, frame.get_payload_data());
+            conn.buf.bytes_read(frame.total_size());
         } break;
+
+        case OpCode::Text:
+        case OpCode::Binary:
+        case OpCode::Continuation:
+            return on_websocket_data_frame(conn, frame);
 
         default:
             SPDLOG_WARN("received frame with unsupported opcode: {}",
                     static_cast<int>(frame.op_code()));
+            conn.buf.bytes_read(frame.total_size());
             break;
     }
-
-    if (frame.fin()) {
-        send_echo(conn, frame.get_payload_data());
-        // consume the frame from the buffer
-        conn.buf.bytes_read(frame.total_size());
-    }
-
     return true;
 }
 
@@ -646,23 +629,134 @@ echo_server::on_websocket_close(connection& conn)
 }
 
 bool
+echo_server::on_websocket_data_frame(connection& conn, frame const& frame)
+{
+    OpCode opcode = frame.op_code();
+
+    if (opcode == OpCode::Continuation) {
+        if (!conn.is_fragmented_msg) {
+            SPDLOG_ERROR("received continuation frame without prior fragmented message");
+            disconnect_and_cleanup_client(conn);
+            return false;
+        }
+    } else { // text or binary
+        if (conn.is_fragmented_msg) {
+            SPDLOG_ERROR("received {} frame while processing fragmented message", opcode);
+            disconnect_and_cleanup_client(conn);
+            return false;
+        }
+    }
+
+    if (frame.fin()) {
+        // this is either a complete message or the final fragment
+        if (conn.is_fragmented_msg) {
+            // final fragment - process the complete accumulated message
+            return process_complete_fragmented_message(conn, frame);
+        } else {
+            // complete single-frame message
+            return process_single_frame_message(conn, frame);
+        }
+    } else {
+        // this is the start of a fragmented message or a continuation fragment
+        if (!conn.is_fragmented_msg) {
+            // starting a new fragmented message
+            conn.current_frame_type = opcode;
+            conn.is_fragmented_msg = true;
+            conn.fragmented_payload_size = 0;
+            SPDLOG_DEBUG("starting fragmented {} message", static_cast<int>(opcode));
+        }
+
+        // add this frame's payload size to our running total
+        conn.fragmented_payload_size += frame.payload_len();
+
+        // consume just this frame's header, keep payload in buffer for later
+        conn.buf.bytes_read(frame.header_size());
+
+        SPDLOG_DEBUG("accumulated fragment: {} bytes this frame, {} bytes total",
+                frame.payload_len(), conn.fragmented_payload_size);
+
+        return true;
+    }
+}
+
+bool
+echo_server::process_single_frame_message(connection& conn, ws::frame const& frame)
+{
+    // process a complete single-frame message
+    if (frame.op_code() == OpCode::Text) {
+        auto payload = frame.get_text_payload();
+        if (!payload) {
+            SPDLOG_ERROR("received text frame with bad payload");
+            return false;
+        }
+        on_websocket_text_frame(conn, payload.value());
+    } else if (frame.op_code() == OpCode::Binary) {
+        on_websocket_binary_frame(conn, frame.get_payload_data());
+    }
+
+    send_echo(conn, frame.get_payload_data(), conn.current_frame_type);
+    conn.buf.bytes_read(frame.total_size());
+
+    return true;
+}
+
+bool
+echo_server::process_complete_fragmented_message(connection& conn, ws::frame const& final_frame)
+{
+    // We have a complete fragmented message. The payload data is scattered
+    // across the buffer with headers in between. We need to extract just the payloads.
+    std::vector<std::uint8_t> complete_payload;
+    complete_payload.reserve(conn.fragmented_payload_size + final_frame.payload_len());
+
+    // extract accumulated payload data from buffer
+    // start from where we've been accumulating (after consuming headers)
+    std::uint8_t const* payload_start = conn.buf.read_ptr();
+
+    // add the accumulated payload bytes (excluding the final frame)
+    complete_payload.insert(
+            complete_payload.end(), payload_start, payload_start + conn.fragmented_payload_size);
+
+    // add the final frame's payload
+    auto final_payload = final_frame.get_payload_data();
+    complete_payload.insert(complete_payload.end(), final_payload.begin(), final_payload.end());
+
+    SPDLOG_DEBUG("completed fragmented message: {} total bytes", complete_payload.size());
+
+    // process the complete message
+    if (conn.current_frame_type == OpCode::Text) {
+        std::string complete_text(
+                reinterpret_cast<const char*>(complete_payload.data()), complete_payload.size());
+        on_websocket_text_frame(conn, complete_text);
+    } else if (conn.current_frame_type == OpCode::Binary) {
+        std::span<const std::uint8_t> complete_data(complete_payload);
+        on_websocket_binary_frame(conn, complete_data);
+    }
+
+    // send echo response
+    std::span<const std::uint8_t> echo_data(complete_payload);
+    send_echo(conn, echo_data, conn.current_frame_type);
+
+    // consume all the accumulated payload bytes plus the final frame
+    conn.buf.bytes_read(conn.fragmented_payload_size + final_frame.total_size());
+
+    conn.reset_fragmentation();
+
+    return true;
+}
+
+bool
 echo_server::on_websocket_text_frame(connection& conn, std::string_view text_data)
 {
     if (text_data.empty()) {
-        SPDLOG_INFO("received text frame with payload of size 0");
-        return true;
+        SPDLOG_INFO("received empty text frame from {}", conn.ip);
+    } else {
+        SPDLOG_INFO("received text frame from {}: {} bytes", conn.ip, text_data.size());
+        if (text_data.size() <= 100) {
+            SPDLOG_DEBUG("text content: '{}'", text_data);
+        } else {
+            SPDLOG_DEBUG("text content: '{}...' (truncated)", text_data.substr(0, 100));
+        }
     }
-
-    auto frame = frame_generator{}.text(text_data);
-
-    // SPDLOG_DEBUG("sending {} bytes", frame.size());
-    // ssize_t nbytes = ::send(
-    //         conn.sockfd, frame.data().data(), static_cast<ssize_t>(frame.size()), /*flags=*/0);
-    // if (nbytes == -1) {
-    //     SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
-    //     return false;
-    // }
-
     return true;
 }
 
@@ -670,20 +764,28 @@ bool
 echo_server::on_websocket_binary_frame(connection& conn, std::span<std::uint8_t const> payload)
 {
     if (payload.empty()) {
-        SPDLOG_INFO("received binary frame with payload of size 0");
-        return true;
+        SPDLOG_INFO("received empty binary frame from {}", conn.ip);
+    } else {
+        SPDLOG_INFO("received binary frame from {}: {} bytes", conn.ip, payload.size());
+
+        if (!payload.empty()) {
+            std::string hex_preview;
+            std::size_t preview_len = std::min(payload.size(), static_cast<std::size_t>(16));
+
+            for (std::size_t i = 0; i < preview_len; ++i) {
+                if (i > 0) {
+                    hex_preview += " ";
+                }
+                hex_preview += std::format("{:02x}", payload[i]);
+            }
+
+            if (payload.size() > 16) {
+                hex_preview += "...";
+            }
+
+            SPDLOG_DEBUG("binary content: {}", hex_preview);
+        }
     }
-
-    auto frame = frame_generator{}.binary(payload);
-
-    // SPDLOG_DEBUG("sending {} bytes", frame.size());
-    // ssize_t nbytes = ::send(
-    //         conn.sockfd, frame.data().data(), static_cast<ssize_t>(frame.size()), /*flags=*/0);
-    // if (nbytes == -1) {
-    //     SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
-    //     return false;
-    // }
-
     return true;
 }
 
@@ -701,6 +803,35 @@ echo_server::disconnect_and_cleanup_client(connection& conn)
     close(conn.sockfd);
     clients_.erase(conn.sockfd);
     SPDLOG_INFO("client disconnected: {}", conn);
+    return true;
+}
+
+
+bool
+echo_server::send_echo(
+        connection& conn, std::span<std::uint8_t const> payload, OpCode original_frame_type)
+{
+    if (payload.empty()) {
+        return true;
+    }
+
+    frame_generator gen;
+
+    if (original_frame_type == OpCode::Text) {
+        std::string_view text_data(reinterpret_cast<const char*>(payload.data()), payload.size());
+        gen.text(text_data);
+    } else {
+        gen.binary(payload);
+    }
+
+    SPDLOG_DEBUG("echoing {} bytes as {}", gen.size(), original_frame_type);
+    ssize_t nbytes
+            = ::send(conn.sockfd, gen.data().data(), static_cast<ssize_t>(gen.size()), /*flags=*/0);
+    if (nbytes == -1) {
+        SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
+        return false;
+    }
+
     return true;
 }
 

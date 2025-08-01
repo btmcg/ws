@@ -35,7 +35,6 @@ struct connection
 {
     int sockfd;
     byte_buffer<BufferSize> buf;
-    OpCode current_frame_type = OpCode::Continuation;
     char ip[INET_ADDRSTRLEN];
     std::uint16_t port = 0;
 
@@ -43,6 +42,19 @@ struct connection
     ParseState parse_state = ParseState::ReadingHeader;
     std::uint64_t bytes_needed = 2; // start with basic header
     std::uint64_t payload_bytes_read = 0;
+
+    // fragmentation handling
+    OpCode current_frame_type = OpCode::Continuation;
+    bool is_fragmented_msg = false;
+    std::uint64_t fragmented_payload_size = 0;
+
+    void
+    reset_fragmentation()
+    {
+        current_frame_type = OpCode::Continuation;
+        is_fragmented_msg = false;
+        fragmented_payload_size = 0;
+    }
 };
 
 } // namespace ws

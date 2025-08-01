@@ -44,6 +44,9 @@ private:
     /// \return \c false on error
     bool on_websocket_frame(connection&);
 
+    /// Called when receiving a text/binary/continuation frame
+    bool on_websocket_data_frame(connection&, frame const&);
+
     /// Called when a ping control frame received
     bool on_websocket_ping(connection&, std::span<std::uint8_t const> payload);
 
@@ -67,6 +70,10 @@ private:
     bool send_websocket_accept(connection&, std::string const& sec_websocket_key) const noexcept;
     bool send_websocket_close(connection&);
     bool disconnect_and_cleanup_client(connection&);
+    bool process_single_frame_message(connection&, frame const&);
+    bool process_complete_fragmented_message(connection&, frame const&);
+    bool send_echo(connection&, std::span<std::uint8_t const> payload, OpCode);
+
 
 private:
     static constexpr std::uint16_t ListenPort = 8000; ///< default listening port
