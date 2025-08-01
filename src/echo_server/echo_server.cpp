@@ -283,7 +283,7 @@ echo_server::on_http_request(connection& conn) const noexcept
     conn.conn_state = ConnectionState::Http;
     std::string_view req(
             reinterpret_cast<char const*>(conn.buf.read_ptr()), conn.buf.bytes_unread());
-    SPDLOG_DEBUG("{}", req);
+    SPDLOG_DEBUG("received http request:\n{}", req);
     conn.buf.bytes_read(conn.buf.bytes_unread());
 
     if (req.starts_with("GET")) {
