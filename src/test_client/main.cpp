@@ -88,12 +88,12 @@ main(int argc, char* argv[])
         all_tests_passed = false;
     }
 
-    //     // Test 7: Fragmented message with interleaved ping
-    //     SPDLOG_INFO("\n🧪 Running Test 7: Fragmented Message with Interleaved Ping");
-    //     if (!client.send_fragmented_message_with_interleaved_ping()) {
-    //         SPDLOG_ERROR("❌ Fragmented message with interleaved ping test failed");
-    //         all_tests_passed = false;
-    //     }
+    // test 7: fragmented message with interleaved ping
+    SPDLOG_INFO("running test 7: fragmented message with interleaved ping");
+    if (!client.send_fragmented_message_with_interleaved_ping()) {
+        SPDLOG_ERROR("fragmented message with interleaved ping test failed");
+        all_tests_passed = false;
+    }
 
     // test summary
     SPDLOG_INFO(std::string(50, '='));

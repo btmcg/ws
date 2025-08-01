@@ -382,22 +382,22 @@ test_client::send_single_byte_fragments()
 bool
 test_client::send_fragmented_message_with_interleaved_ping()
 {
-    SPDLOG_INFO("=== Testing fragmented message with interleaved ping ===");
+    SPDLOG_INFO("=== testing fragmented message with interleaved ping ===");
 
-    // Start fragmented message
-    auto frame1 = frame_generator{}.text("First", /*fin=*/false, /*mask=*/true);
+    // start fragmented message
+    auto frame1 = frame_generator{}.text("first", /*fin=*/false, /*mask=*/true);
     if (::send(sockfd_, frame1.data().data(), frame1.size(), 0)
             != static_cast<ssize_t>(frame1.size())) {
         return false;
     }
 
-    // Send a ping frame (should be handled independently)
+    // send a ping frame (should be handled independently)
     if (!send_ping("ping_during_fragmentation")) {
         return false;
     }
 
-    // Continue fragmented message
-    std::string part2 = " Second";
+    // continue fragmented message
+    std::string part2 = " second";
     auto frame2 = frame_generator{}.continuation(
             std::span<std::uint8_t const>(
                     reinterpret_cast<std::uint8_t const*>(part2.data()), part2.size()),
@@ -407,13 +407,13 @@ test_client::send_fragmented_message_with_interleaved_ping()
         return false;
     }
 
-    // Send another ping
+    // send another ping
     if (!send_ping("another_ping")) {
         return false;
     }
 
-    // Finish fragmented message
-    std::string part3 = " Third";
+    // finish fragmented message
+    std::string part3 = " third";
     auto frame3 = frame_generator{}.continuation(
             std::span<std::uint8_t const>(
                     reinterpret_cast<std::uint8_t const*>(part3.data()), part3.size()),
@@ -423,9 +423,8 @@ test_client::send_fragmented_message_with_interleaved_ping()
         return false;
     }
 
-    // We should receive pong responses and the echo
-    // This test mainly verifies the server handles control frames during fragmentation
-    return expect_echo_response("First Second Third");
+    // we should receive pong responses and the echo
+    return expect_echo_response("first second third");
 }
 
 bool
