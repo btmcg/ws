@@ -47,6 +47,7 @@ struct connection
     OpCode current_frame_type = OpCode::Continuation;
     bool is_fragmented_msg = false;
     std::uint64_t fragmented_payload_size = 0;
+    std::vector<std::uint8_t> fragmented_payload;
 
     void
     reset_fragmentation()
@@ -54,6 +55,7 @@ struct connection
         current_frame_type = OpCode::Continuation;
         is_fragmented_msg = false;
         fragmented_payload_size = 0;
+        fragmented_payload.clear();
     }
 };
 

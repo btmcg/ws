@@ -666,11 +666,16 @@ echo_server::on_websocket_data_frame(connection& conn, frame const& frame)
             SPDLOG_DEBUG("starting fragmented {} message", static_cast<int>(opcode));
         }
 
+        // store the payload data and consume the entire frame
+        auto payload = frame.get_payload_data();
+        conn.fragmented_payload.insert(
+                conn.fragmented_payload.end(), payload.begin(), payload.end());
+        conn.fragmented_payload_size += frame.payload_len();
+
         // add this frame's payload size to our running total
         conn.fragmented_payload_size += frame.payload_len();
 
-        // consume just this frame's header, keep payload in buffer for later
-        conn.buf.bytes_read(frame.header_size());
+        conn.buf.bytes_read(frame.total_size());
 
         SPDLOG_DEBUG("accumulated fragment: {} bytes this frame, {} bytes total",
                 frame.payload_len(), conn.fragmented_payload_size);
@@ -680,7 +685,7 @@ echo_server::on_websocket_data_frame(connection& conn, frame const& frame)
 }
 
 bool
-echo_server::process_single_frame_message(connection& conn, ws::frame const& frame)
+echo_server::process_single_frame_message(connection& conn, frame const& frame)
 {
     // process a complete single-frame message
     if (frame.op_code() == OpCode::Text) {
@@ -701,43 +706,31 @@ echo_server::process_single_frame_message(connection& conn, ws::frame const& fra
 }
 
 bool
-echo_server::process_complete_fragmented_message(connection& conn, ws::frame const& final_frame)
+echo_server::process_complete_fragmented_message(connection& conn, frame const& final_frame)
 {
-    // We have a complete fragmented message. The payload data is scattered
-    // across the buffer with headers in between. We need to extract just the payloads.
-    std::vector<std::uint8_t> complete_payload;
-    complete_payload.reserve(conn.fragmented_payload_size + final_frame.payload_len());
-
-    // extract accumulated payload data from buffer
-    // start from where we've been accumulating (after consuming headers)
-    std::uint8_t const* payload_start = conn.buf.read_ptr();
-
-    // add the accumulated payload bytes (excluding the final frame)
-    complete_payload.insert(
-            complete_payload.end(), payload_start, payload_start + conn.fragmented_payload_size);
-
-    // add the final frame's payload
+    // add the final frame's payload to our accumulated data
     auto final_payload = final_frame.get_payload_data();
-    complete_payload.insert(complete_payload.end(), final_payload.begin(), final_payload.end());
+    conn.fragmented_payload.insert(
+            conn.fragmented_payload.end(), final_payload.begin(), final_payload.end());
 
-    SPDLOG_DEBUG("completed fragmented message: {} total bytes", complete_payload.size());
+    SPDLOG_DEBUG("completed fragmented message: {} total bytes", conn.fragmented_payload.size());
 
     // process the complete message
     if (conn.current_frame_type == OpCode::Text) {
-        std::string complete_text(
-                reinterpret_cast<const char*>(complete_payload.data()), complete_payload.size());
+        std::string complete_text(reinterpret_cast<char const*>(conn.fragmented_payload.data()),
+                conn.fragmented_payload.size());
         on_websocket_text_frame(conn, complete_text);
     } else if (conn.current_frame_type == OpCode::Binary) {
-        std::span<const std::uint8_t> complete_data(complete_payload);
+        std::span<const std::uint8_t> complete_data(conn.fragmented_payload);
         on_websocket_binary_frame(conn, complete_data);
     }
 
     // send echo response
-    std::span<const std::uint8_t> echo_data(complete_payload);
+    std::span<const std::uint8_t> echo_data(conn.fragmented_payload);
     send_echo(conn, echo_data, conn.current_frame_type);
 
-    // consume all the accumulated payload bytes plus the final frame
-    conn.buf.bytes_read(conn.fragmented_payload_size + final_frame.total_size());
+    // consume the final frame
+    conn.buf.bytes_read(final_frame.total_size());
 
     conn.reset_fragmentation();
 

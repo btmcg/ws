@@ -44,7 +44,7 @@ main(int argc, char* argv[])
 
     if (!echo.empty()) {
         std::string echo_str(reinterpret_cast<char const*>(echo.data()), echo.size());
-        SPDLOG_INFO("echo content: '{}'", echo_str);
+        SPDLOG_INFO("echo content:\n{}", echo_str);
     }
 
     client.mark_read(echo.size());
