@@ -659,10 +659,10 @@ echo_server::on_websocket_data_frame(connection& conn, frame const& frame)
     } else {
         // this is the start of a fragmented message or a continuation fragment
         if (!conn.is_fragmented_msg) {
-            // starting a new fragmented message
             conn.current_frame_type = opcode;
             conn.is_fragmented_msg = true;
             conn.fragmented_payload_size = 0;
+            conn.fragmented_payload.clear();
             SPDLOG_DEBUG("starting fragmented {} message", static_cast<int>(opcode));
         }
 
@@ -670,9 +670,6 @@ echo_server::on_websocket_data_frame(connection& conn, frame const& frame)
         auto payload = frame.get_payload_data();
         conn.fragmented_payload.insert(
                 conn.fragmented_payload.end(), payload.begin(), payload.end());
-        conn.fragmented_payload_size += frame.payload_len();
-
-        // add this frame's payload size to our running total
         conn.fragmented_payload_size += frame.payload_len();
 
         conn.buf.bytes_read(frame.total_size());
@@ -699,7 +696,7 @@ echo_server::process_single_frame_message(connection& conn, frame const& frame)
         on_websocket_binary_frame(conn, frame.get_payload_data());
     }
 
-    send_echo(conn, frame.get_payload_data(), conn.current_frame_type);
+    send_echo(conn, frame.get_payload_data(), frame.op_code());
     conn.buf.bytes_read(frame.total_size());
 
     return true;
