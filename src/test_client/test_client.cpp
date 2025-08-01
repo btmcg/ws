@@ -101,7 +101,7 @@ test_client::send_websocket_upgrade_request()
 
     int const local_port = std::byteswap(sa.sin_port);
 
-    ws::frame_generator frame_gen;
+    frame_generator frame_gen;
 
     std::string const websocket_key = frame_gen.generate_websocket_key();
     std::string const request = std::format("GET / HTTP/1.1\r\n"
@@ -133,7 +133,7 @@ test_client::send_simple_fragmented_message()
     std::string part2 = " world!";
 
     // first fragment (text frame, FIN=false)
-    auto frame1 = ws::frame_generator{}.text(part1, /*fin=*/false, /*mask=*/true);
+    auto frame1 = frame_generator{}.text(part1, /*fin=*/false, /*mask=*/true);
     if (nbytes = ::send(sockfd_, frame1.data().data(), frame1.size(), /*flags=*/0);
             nbytes != static_cast<ssize_t>(frame1.size())) {
         SPDLOG_CRITICAL("send: {}", std::strerror(errno));
@@ -142,7 +142,7 @@ test_client::send_simple_fragmented_message()
     SPDLOG_DEBUG("send_simple_fragmented_message: sent fragment 1: {} bytes", nbytes);
 
     // second fragment (continuation frame, FIN=true)
-    auto frame2 = ws::frame_generator{}.continuation(
+    auto frame2 = frame_generator{}.continuation(
             std::span<std::uint8_t const>(
                     reinterpret_cast<std::uint8_t const*>(part2.data()), part2.size()),
             /*fin=*/true, /*mask=*/true);
@@ -209,39 +209,39 @@ test_client::send_large_fragmented_text_message()
 bool
 test_client::send_binary_fragmented_message()
 {
-    SPDLOG_INFO("=== Testing binary fragmented message ===");
+    SPDLOG_INFO("=== testing binary fragmented message ===");
 
     std::vector<std::uint8_t> binary_data = generate_binary_data(1024);
 
-    // Split into 3 parts
+    // split into 3 parts
     std::vector<std::uint8_t> part1(binary_data.begin(), binary_data.begin() + 300);
     std::vector<std::uint8_t> part2(binary_data.begin() + 300, binary_data.begin() + 700);
     std::vector<std::uint8_t> part3(binary_data.begin() + 700, binary_data.end());
 
-    // First fragment (binary frame, FIN=false)
-    auto frame1 = ws::frame_generator{}.binary(
+    // first fragment (binary frame, FIN=false)
+    auto frame1 = frame_generator{}.binary(
             std::span<std::uint8_t const>(part1), /*fin=*/false, /*mask=*/true);
     if (::send(sockfd_, frame1.data().data(), frame1.size(), 0)
             != static_cast<ssize_t>(frame1.size())) {
-        SPDLOG_ERROR("Failed to send binary fragment 1");
+        SPDLOG_ERROR("failed to send binary fragment 1");
         return false;
     }
 
-    // Second fragment (continuation frame, FIN=false)
-    auto frame2 = ws::frame_generator{}.continuation(
+    // second fragment (continuation frame, FIN=false)
+    auto frame2 = frame_generator{}.continuation(
             std::span<std::uint8_t const>(part2), /*fin=*/false, /*mask=*/true);
     if (::send(sockfd_, frame2.data().data(), frame2.size(), 0)
             != static_cast<ssize_t>(frame2.size())) {
-        SPDLOG_ERROR("Failed to send binary fragment 2");
+        SPDLOG_ERROR("failed to send binary fragment 2");
         return false;
     }
 
-    // Third fragment (continuation frame, FIN=true)
-    auto frame3 = ws::frame_generator{}.continuation(
+    // third fragment (continuation frame, FIN=true)
+    auto frame3 = frame_generator{}.continuation(
             std::span<std::uint8_t const>(part3), /*fin=*/true, /*mask=*/true);
     if (::send(sockfd_, frame3.data().data(), frame3.size(), 0)
             != static_cast<ssize_t>(frame3.size())) {
-        SPDLOG_ERROR("Failed to send binary fragment 3");
+        SPDLOG_ERROR("failed to send binary fragment 3");
         return false;
     }
 
@@ -257,7 +257,7 @@ test_client::send_many_small_fragments()
     std::string alphabet = "abcdefghijklmnopqrstuvwxyz";
 
     // First fragment (text frame, FIN=false)
-    auto frame1 = ws::frame_generator{}.text("Start:", /*fin=*/false, /*mask=*/true);
+    auto frame1 = frame_generator{}.text("Start:", /*fin=*/false, /*mask=*/true);
     if (::send(sockfd_, frame1.data().data(), frame1.size(), 0)
             != static_cast<ssize_t>(frame1.size())) {
         return false;
@@ -267,7 +267,7 @@ test_client::send_many_small_fragments()
     // Send 26 small continuation fragments (one for each letter)
     for (size_t i = 0; i < 25; ++i) {
         std::string letter(1, alphabet[i]);
-        auto frame = ws::frame_generator{}.continuation(
+        auto frame = frame_generator{}.continuation(
                 std::span<std::uint8_t const>(
                         reinterpret_cast<std::uint8_t const*>(letter.data()), 1),
                 /*fin=*/false, /*mask=*/true);
@@ -281,7 +281,7 @@ test_client::send_many_small_fragments()
 
     // Final fragment (continuation frame, FIN=true)
     std::string final_letter(1, alphabet[25]);
-    auto final_frame = ws::frame_generator{}.continuation(
+    auto final_frame = frame_generator{}.continuation(
             std::span<std::uint8_t const>(
                     reinterpret_cast<std::uint8_t const*>(final_letter.data()), 1),
             /*fin=*/true, /*mask=*/true);
@@ -308,14 +308,14 @@ test_client::send_empty_fragments()
     SPDLOG_INFO("=== Testing empty fragments ===");
 
     // First fragment with actual content
-    auto frame1 = ws::frame_generator{}.text("Hello", /*fin=*/false, /*mask=*/true);
+    auto frame1 = frame_generator{}.text("Hello", /*fin=*/false, /*mask=*/true);
     if (::send(sockfd_, frame1.data().data(), frame1.size(), 0)
             != static_cast<ssize_t>(frame1.size())) {
         return false;
     }
 
     // Empty continuation fragment
-    auto frame2 = ws::frame_generator{}.continuation(
+    auto frame2 = frame_generator{}.continuation(
             std::span<std::uint8_t const>(), /*fin=*/false, /*mask=*/true);
     if (::send(sockfd_, frame2.data().data(), frame2.size(), 0)
             != static_cast<ssize_t>(frame2.size())) {
@@ -324,7 +324,7 @@ test_client::send_empty_fragments()
 
     // Another fragment with content
     std::string part3 = " World";
-    auto frame3 = ws::frame_generator{}.continuation(
+    auto frame3 = frame_generator{}.continuation(
             std::span<std::uint8_t const>(
                     reinterpret_cast<std::uint8_t const*>(part3.data()), part3.size()),
             /*fin=*/false, /*mask=*/true);
@@ -334,7 +334,7 @@ test_client::send_empty_fragments()
     }
 
     // Final empty fragment
-    auto frame4 = ws::frame_generator{}.continuation(
+    auto frame4 = frame_generator{}.continuation(
             std::span<std::uint8_t const>(), /*fin=*/true, /*mask=*/true);
     if (::send(sockfd_, frame4.data().data(), frame4.size(), 0)
             != static_cast<ssize_t>(frame4.size())) {
@@ -358,14 +358,14 @@ test_client::send_single_byte_fragments()
 
         if (i == 0) {
             // First fragment (text frame)
-            auto frame = ws::frame_generator{}.text(byte_str, /*fin=*/is_final, /*mask=*/true);
+            auto frame = frame_generator{}.text(byte_str, /*fin=*/is_final, /*mask=*/true);
             if (::send(sockfd_, frame.data().data(), frame.size(), 0)
                     != static_cast<ssize_t>(frame.size())) {
                 return false;
             }
         } else {
             // Continuation fragments
-            auto frame = ws::frame_generator{}.continuation(
+            auto frame = frame_generator{}.continuation(
                     std::span<std::uint8_t const>(
                             reinterpret_cast<std::uint8_t const*>(byte_str.data()), 1),
                     /*fin=*/is_final, /*mask=*/true);
@@ -385,7 +385,7 @@ test_client::send_fragmented_message_with_interleaved_ping()
     SPDLOG_INFO("=== Testing fragmented message with interleaved ping ===");
 
     // Start fragmented message
-    auto frame1 = ws::frame_generator{}.text("First", /*fin=*/false, /*mask=*/true);
+    auto frame1 = frame_generator{}.text("First", /*fin=*/false, /*mask=*/true);
     if (::send(sockfd_, frame1.data().data(), frame1.size(), 0)
             != static_cast<ssize_t>(frame1.size())) {
         return false;
@@ -398,7 +398,7 @@ test_client::send_fragmented_message_with_interleaved_ping()
 
     // Continue fragmented message
     std::string part2 = " Second";
-    auto frame2 = ws::frame_generator{}.continuation(
+    auto frame2 = frame_generator{}.continuation(
             std::span<std::uint8_t const>(
                     reinterpret_cast<std::uint8_t const*>(part2.data()), part2.size()),
             /*fin=*/false, /*mask=*/true);
@@ -414,7 +414,7 @@ test_client::send_fragmented_message_with_interleaved_ping()
 
     // Finish fragmented message
     std::string part3 = " Third";
-    auto frame3 = ws::frame_generator{}.continuation(
+    auto frame3 = frame_generator{}.continuation(
             std::span<std::uint8_t const>(
                     reinterpret_cast<std::uint8_t const*>(part3.data()), part3.size()),
             /*fin=*/true, /*mask=*/true);
@@ -431,7 +431,7 @@ test_client::send_fragmented_message_with_interleaved_ping()
 bool
 test_client::send_ping(std::string const& payload)
 {
-    auto ping_frame = ws::frame_generator{}.ping(
+    auto ping_frame = frame_generator{}.ping(
             std::span<std::uint8_t const>(
                     reinterpret_cast<std::uint8_t const*>(payload.data()), payload.size()),
             /*mask=*/true);
@@ -482,41 +482,38 @@ test_client::expect_echo_response(std::string const& expected_text)
     return true;
 }
 
-// Also fix expect_binary_echo_response the same way:
 bool
 test_client::expect_binary_echo_response(std::vector<std::uint8_t> const& expected_data)
 {
     auto response = recv();
     if (response.empty()) {
-        SPDLOG_ERROR("No binary echo response received");
+        SPDLOG_ERROR("no binary echo response received");
         return false;
     }
 
-    // Parse the WebSocket frame instead of treating raw bytes as payload
-    ws::frame frame;
+    frame frame;
     ParseResult result = frame.parse_from_buffer(response.data(), response.size());
 
     if (result != ParseResult::Success) {
         SPDLOG_ERROR(
-                "Failed to parse binary echo response frame: result={}", static_cast<int>(result));
+                "failed to parse binary echo response frame: result={}", static_cast<int>(result));
         return false;
     }
 
-    // Get the actual payload from the parsed frame
     auto payload = frame.get_payload_data();
 
     if (payload.size() != expected_data.size()) {
-        SPDLOG_ERROR("Binary echo size mismatch. Expected: {}, Received: {}", expected_data.size(),
+        SPDLOG_ERROR("binary echo size mismatch. expected: {}, received: {}", expected_data.size(),
                 payload.size());
         return false;
     }
 
     if (!std::equal(payload.begin(), payload.end(), expected_data.begin())) {
-        SPDLOG_ERROR("Binary echo content mismatch");
+        SPDLOG_ERROR("binary echo content mismatch");
         return false;
     }
 
-    SPDLOG_INFO("✓ Binary echo response matches expected data ({} bytes)", expected_data.size());
+    SPDLOG_INFO("binary echo response matches expected data ({} bytes)", expected_data.size());
     mark_read(response.size());
     return true;
 }

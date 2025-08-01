@@ -60,12 +60,12 @@ main(int argc, char* argv[])
         all_tests_passed = false;
     }
 
-    // // test 3: binary fragmented message
-    // SPDLOG_INFO("\nrunning test 3: binary fragmented message");
-    // if (!client.send_binary_fragmented_message()) {
-    //     SPDLOG_ERROR("binary fragmented message test failed");
-    //     all_tests_passed = false;
-    // }
+    // test 3: binary fragmented message
+    SPDLOG_INFO("running test 3: binary fragmented message");
+    if (!client.send_binary_fragmented_message()) {
+        SPDLOG_ERROR("binary fragmented message test failed");
+        all_tests_passed = false;
+    }
 
     //     // Test 4: Many small fragments
     //     SPDLOG_INFO("\n🧪 Running Test 4: Many Small Fragments");
