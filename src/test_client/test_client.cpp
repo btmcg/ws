@@ -347,24 +347,24 @@ test_client::send_empty_fragments()
 bool
 test_client::send_single_byte_fragments()
 {
-    SPDLOG_INFO("=== Testing single-byte fragments ===");
+    SPDLOG_INFO("=== testing single-byte fragments ===");
 
     std::string message = "BYTE";
 
-    // Send each byte as a separate fragment
-    for (size_t i = 0; i < message.size(); ++i) {
+    // send each byte as a separate fragment
+    for (std::size_t i = 0; i < message.size(); ++i) {
         bool is_final = (i == message.size() - 1);
         std::string byte_str(1, message[i]);
 
         if (i == 0) {
-            // First fragment (text frame)
+            // first fragment (text frame)
             auto frame = frame_generator{}.text(byte_str, /*fin=*/is_final, /*mask=*/true);
             if (::send(sockfd_, frame.data().data(), frame.size(), 0)
                     != static_cast<ssize_t>(frame.size())) {
                 return false;
             }
         } else {
-            // Continuation fragments
+            // continuation fragments
             auto frame = frame_generator{}.continuation(
                     std::span<std::uint8_t const>(
                             reinterpret_cast<std::uint8_t const*>(byte_str.data()), 1),

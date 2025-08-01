@@ -81,12 +81,12 @@ main(int argc, char* argv[])
         all_tests_passed = false;
     }
 
-    //     // Test 6: Single-byte fragments
-    //     SPDLOG_INFO("\n🧪 Running Test 6: Single-byte Fragments");
-    //     if (!client.send_single_byte_fragments()) {
-    //         SPDLOG_ERROR("❌ Single-byte fragments test failed");
-    //         all_tests_passed = false;
-    //     }
+    // test 6: single-byte fragments
+    SPDLOG_INFO("running test 6: single-byte fragments");
+    if (!client.send_single_byte_fragments()) {
+        SPDLOG_ERROR("single-byte fragments test failed");
+        all_tests_passed = false;
+    }
 
     //     // Test 7: Fragmented message with interleaved ping
     //     SPDLOG_INFO("\n🧪 Running Test 7: Fragmented Message with Interleaved Ping");
