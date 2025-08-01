@@ -681,7 +681,7 @@ echo_server::on_websocket_data_frame(connection& conn, frame const& frame)
         if (!conn.is_fragmented_msg) {
             conn.current_frame_type = opcode;
             conn.is_fragmented_msg = true;
-            conn.fragmented_payload_size = 0;
+            conn.fragmented_payload_size = 0; // Reset to 0
             conn.fragmented_payload.clear();
             conn.fragments_received = 0;
             SPDLOG_DEBUG("starting fragmented {} message", static_cast<int>(opcode));
@@ -691,8 +691,11 @@ echo_server::on_websocket_data_frame(connection& conn, frame const& frame)
         auto payload = frame.get_payload_data();
         conn.fragmented_payload.insert(
                 conn.fragmented_payload.end(), payload.begin(), payload.end());
-        conn.fragmented_payload_size += frame.payload_len();
+        conn.fragmented_payload_size += frame.payload_len(); // Update size counter
         conn.fragments_received++;
+
+        SPDLOG_DEBUG("accumulated fragment {}: {} bytes (total: {} bytes)", conn.fragments_received,
+                frame.payload_len(), conn.fragmented_payload.size());
 
         // consume the frame from buffer
         conn.buf.bytes_read(frame.total_size());
@@ -730,8 +733,11 @@ echo_server::process_complete_fragmented_message(connection& conn, frame const& 
     auto final_payload = final_frame.get_payload_data();
     conn.fragmented_payload.insert(
             conn.fragmented_payload.end(), final_payload.begin(), final_payload.end());
+    conn.fragmented_payload_size += final_frame.payload_len();
+    conn.fragments_received++;
 
-    SPDLOG_DEBUG("completed fragmented message: {} total bytes", conn.fragmented_payload.size());
+    SPDLOG_DEBUG("completed fragmented message: {} total bytes in {} fragments",
+            conn.fragmented_payload.size(), conn.fragments_received);
 
     // process the complete message
     if (conn.current_frame_type == OpCode::Text) {
@@ -743,13 +749,15 @@ echo_server::process_complete_fragmented_message(connection& conn, frame const& 
         on_websocket_binary_frame(conn, complete_data);
     }
 
-    // send echo response
+    // send echo response using the accumulated data
     std::span<const std::uint8_t> echo_data(conn.fragmented_payload);
+    SPDLOG_DEBUG("sending echo of fragmented message: {} bytes", echo_data.size());
     bool echo_sent = send_echo(conn, echo_data, conn.current_frame_type);
 
-    // consume the final frame
+    // consume the final frame from buffer
     conn.buf.bytes_read(final_frame.total_size());
 
+    // reset fragmentation state
     conn.reset_fragmentation();
 
     return echo_sent;
