@@ -861,29 +861,21 @@ bool
 echo_server::send_echo(
         connection& conn, std::span<std::uint8_t const> payload, OpCode original_frame_type)
 {
-    SPDLOG_DEBUG("=== SEND_ECHO DEBUG START ===");
-    SPDLOG_DEBUG("Socket fd: {}", conn.sockfd);
-    SPDLOG_DEBUG("Payload size: {} bytes", payload.size());
-    SPDLOG_DEBUG("Original frame type: {}", static_cast<int>(original_frame_type));
-
     if (payload.empty()) {
-        SPDLOG_DEBUG("Payload is empty - returning true without sending");
+        SPDLOG_DEBUG("payload is empty - returning true without sending");
         return true;
     }
 
-    // Create frame generator
     frame_generator gen;
 
     if (original_frame_type == OpCode::Text) {
         std::string_view text_data(reinterpret_cast<const char*>(payload.data()), payload.size());
-        SPDLOG_DEBUG("Creating text frame with content: '{}'", text_data);
         gen.text(text_data);
     } else {
-        SPDLOG_DEBUG("Creating binary frame");
         gen.binary(payload);
     }
 
-    SPDLOG_DEBUG("Generated frame size: {} bytes", gen.size());
+    SPDLOG_DEBUG("generated frame size: {} bytes", gen.size());
 
     // Validate the generated frame by parsing it back
     auto frame_data = gen.data();
@@ -892,30 +884,14 @@ echo_server::send_echo(
             = validation_frame.parse_from_buffer(frame_data.data(), frame_data.size());
 
     if (parse_result != ParseResult::Success) {
-        SPDLOG_ERROR("Generated frame is invalid! ParseResult: {}", static_cast<int>(parse_result));
+        SPDLOG_ERROR("generated frame is invalid! ParseResult: {}", static_cast<int>(parse_result));
         return false;
     }
 
-    SPDLOG_DEBUG("Frame validation: opcode={}, fin={}, payload_len={}",
+    SPDLOG_DEBUG("frame validation: opcode={}, fin={}, payload_len={}",
             static_cast<int>(validation_frame.op_code()), validation_frame.fin(),
             validation_frame.payload_len());
 
-    // Log the first few bytes of the generated frame for debugging
-    if (!frame_data.empty()) {
-        std::string hex_preview;
-        std::size_t preview_len = std::min(frame_data.size(), static_cast<std::size_t>(16));
-        for (std::size_t i = 0; i < preview_len; ++i) {
-            if (i > 0)
-                hex_preview += " ";
-            hex_preview += std::format("{:02x}", frame_data[i]);
-        }
-        if (frame_data.size() > 16)
-            hex_preview += "...";
-        SPDLOG_DEBUG("Frame bytes: {}", hex_preview);
-    }
-
-    // Send the frame
-    SPDLOG_DEBUG("Sending frame to socket {}", conn.sockfd);
     ssize_t nbytes
             = ::send(conn.sockfd, gen.data().data(), static_cast<ssize_t>(gen.size()), /*flags=*/0);
 
@@ -925,18 +901,12 @@ echo_server::send_echo(
     }
 
     if (nbytes != static_cast<ssize_t>(gen.size())) {
-        SPDLOG_ERROR("Partial send: sent {} bytes, expected {} bytes", nbytes, gen.size());
+        SPDLOG_ERROR("partial send: sent {} bytes, expected {} bytes", nbytes, gen.size());
         return false;
     }
 
-    SPDLOG_DEBUG("Successfully sent {} bytes to socket {}", nbytes, conn.sockfd);
+    SPDLOG_DEBUG("successfully sent {} bytes to socket {}", nbytes, conn.sockfd);
 
-    // Try to force a flush (though send() should normally do this)
-    if (::fsync(conn.sockfd) == -1) {
-        SPDLOG_WARN("fsync failed: {} (this may be normal for sockets)", std::strerror(errno));
-    }
-
-    SPDLOG_DEBUG("=== SEND_ECHO DEBUG END ===");
     return true;
 }
 

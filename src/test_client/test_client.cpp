@@ -437,22 +437,19 @@ test_client::send_ping(std::string const& payload)
 
     if (::send(sockfd_, ping_frame.data().data(), ping_frame.size(), 0)
             != static_cast<ssize_t>(ping_frame.size())) {
-        SPDLOG_ERROR("Failed to send ping");
+        SPDLOG_ERROR("failed to send ping");
         return false;
     }
 
-    SPDLOG_DEBUG("Sent ping with payload: '{}'", payload);
+    SPDLOG_DEBUG("sent ping with payload: '{}'", payload);
     return true;
 }
 
 bool
 test_client::expect_echo_response(std::string const& expected_text)
 {
-    SPDLOG_DEBUG("=== EXPECT_ECHO_RESPONSE START ===");
-    SPDLOG_DEBUG("Waiting for echo response: '{}'", expected_text);
-
     // We may receive multiple frames before getting the echo response
-    // due to interleaved control frames (pong responses to ping)
+    // due to interleaved control frames (pong responses to ping).
     while (true) {
         // Check if we already have data in the buffer
         if (buf_.bytes_unread() == 0) {
@@ -461,18 +458,18 @@ test_client::expect_echo_response(std::string const& expected_text)
                 SPDLOG_ERROR("no echo response received (connection closed or error)");
                 return false;
             }
-            SPDLOG_DEBUG("Received {} bytes from server", response.size());
+            SPDLOG_DEBUG("received {} bytes from server", response.size());
         }
 
         // Process all complete frames in the buffer
         while (buf_.bytes_unread() > 0) {
-            SPDLOG_DEBUG("Processing buffer with {} bytes unread", buf_.bytes_unread());
+            SPDLOG_DEBUG("processing buffer with {} bytes unread", buf_.bytes_unread());
 
             frame frame;
             ParseResult result = frame.parse_from_buffer(buf_.read_ptr(), buf_.bytes_unread());
 
             if (result == ParseResult::NeedMoreData) {
-                SPDLOG_DEBUG("Need more data for complete frame, breaking to recv more");
+                SPDLOG_DEBUG("need more data for complete frame, breaking to recv more");
                 break; // Need to receive more data
             }
 
@@ -481,7 +478,7 @@ test_client::expect_echo_response(std::string const& expected_text)
                 return false;
             }
 
-            SPDLOG_DEBUG("Parsed frame: opcode={}, fin={}, payload_len={}",
+            SPDLOG_DEBUG("parsed frame: opcode={}, fin={}, payload_len={}",
                     static_cast<int>(frame.op_code()), frame.fin(), frame.payload_len());
 
             switch (frame.op_code()) {
@@ -495,7 +492,7 @@ test_client::expect_echo_response(std::string const& expected_text)
                     }
 
                     std::string received_text = text_payload.value();
-                    SPDLOG_DEBUG("Received text frame: '{}'", received_text);
+                    SPDLOG_DEBUG("received text frame: '{}'", received_text);
 
                     if (received_text != expected_text) {
                         SPDLOG_ERROR("echo mismatch. expected:\n[{}]\nreceived:\n[{}]",
@@ -507,7 +504,6 @@ test_client::expect_echo_response(std::string const& expected_text)
                     SPDLOG_INFO(
                             "echo response matches expected text ({} bytes)", expected_text.size());
                     buf_.bytes_read(frame.total_size());
-                    SPDLOG_DEBUG("=== EXPECT_ECHO_RESPONSE SUCCESS ===");
                     return true;
                 }
 
@@ -545,9 +541,10 @@ test_client::expect_echo_response(std::string const& expected_text)
             }
         }
 
-        // If we get here, we've processed all frames in the buffer but haven't found our echo yet
-        // Continue the outer loop to recv() more data
-        SPDLOG_DEBUG("Processed all frames in buffer, waiting for more data...");
+        // If we get here, we've processed all frames in the buffer but
+        // haven't found our echo yet. Continue the outer loop to recv()
+        // more data.
+        SPDLOG_DEBUG("processed all frames in buffer, waiting for more data...");
     }
 }
 
