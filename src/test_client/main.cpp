@@ -37,7 +37,7 @@ main(int argc, char* argv[])
     bool all_tests_passed = true;
 
     // test 1: simple small fragmented text message
-    SPDLOG_INFO("\nrunning test 1: simple fragmented message");
+    SPDLOG_INFO("running test 1: simple fragmented message");
     if (!client.send_simple_fragmented_message()) {
         SPDLOG_ERROR("simple fragmented message test failed");
         all_tests_passed = false;
@@ -45,7 +45,7 @@ main(int argc, char* argv[])
         auto echo = client.recv();
         if (!echo.empty()) {
             std::string echo_str(reinterpret_cast<char const*>(echo.data()), echo.size());
-            SPDLOG_INFO("simple fragmentation test passed: '{}'", echo_str);
+            SPDLOG_INFO("simple fragmentation test passed");
             client.mark_read(echo.size());
         } else {
             SPDLOG_ERROR("no echo received for simple fragmented message");
@@ -54,7 +54,7 @@ main(int argc, char* argv[])
     }
 
     // test 2: large fragmented text message
-    SPDLOG_INFO("\nrunning test 2: large fragmented text message");
+    SPDLOG_INFO("running test 2: large fragmented text message");
     if (!client.send_large_fragmented_text_message()) {
         SPDLOG_ERROR("large fragmented text message test failed");
         all_tests_passed = false;
@@ -96,7 +96,7 @@ main(int argc, char* argv[])
     //     }
 
     // test summary
-    SPDLOG_INFO("\n" + std::string(50, '='));
+    SPDLOG_INFO(std::string(50, '='));
     if (all_tests_passed) {
         SPDLOG_INFO("all fragmentation tests passed!");
         SPDLOG_INFO("7/7 tests successful");

@@ -1,4 +1,5 @@
 #include "test_client.hpp"
+#include "ws/frame.hpp"
 #include "ws/frame_generator.hpp"
 #include <netdb.h> // ::getaddrinfo
 #include <spdlog/spdlog.h>
@@ -450,21 +451,38 @@ test_client::expect_echo_response(std::string const& expected_text)
 {
     auto response = recv();
     if (response.empty()) {
-        SPDLOG_ERROR("No echo response received");
+        SPDLOG_ERROR("no echo response received");
         return false;
     }
 
-    std::string received_text(reinterpret_cast<char const*>(response.data()), response.size());
+    frame frame;
+    ParseResult result = frame.parse_from_buffer(response.data(), response.size());
+
+    if (result != ParseResult::Success) {
+        SPDLOG_ERROR("failed to parse echo response frame: result={}", static_cast<int>(result));
+        return false;
+    }
+
+    auto text_payload = frame.get_text_payload();
+    if (!text_payload) {
+        SPDLOG_ERROR("echo response is not a valid text frame");
+        return false;
+    }
+
+    std::string received_text = text_payload.value();
+
     if (received_text != expected_text) {
-        SPDLOG_ERROR("echo mismatch. expected:\n{}\nreceived:\n{}", expected_text, received_text);
+        SPDLOG_ERROR(
+                "echo mismatch. expected:\n[{}]\nreceived:\n[{}]", expected_text, received_text);
         return false;
     }
 
-    SPDLOG_INFO("✓ Echo response matches expected text ({} bytes)", expected_text.size());
+    SPDLOG_INFO("echo response matches expected text ({} bytes)", expected_text.size());
     mark_read(response.size());
     return true;
 }
 
+// Also fix expect_binary_echo_response the same way:
 bool
 test_client::expect_binary_echo_response(std::vector<std::uint8_t> const& expected_data)
 {
@@ -474,13 +492,26 @@ test_client::expect_binary_echo_response(std::vector<std::uint8_t> const& expect
         return false;
     }
 
-    if (response.size() != expected_data.size()) {
-        SPDLOG_ERROR("Binary echo size mismatch. Expected: {}, Received: {}", expected_data.size(),
-                response.size());
+    // Parse the WebSocket frame instead of treating raw bytes as payload
+    ws::frame frame;
+    ParseResult result = frame.parse_from_buffer(response.data(), response.size());
+
+    if (result != ParseResult::Success) {
+        SPDLOG_ERROR(
+                "Failed to parse binary echo response frame: result={}", static_cast<int>(result));
         return false;
     }
 
-    if (!std::equal(response.begin(), response.end(), expected_data.begin())) {
+    // Get the actual payload from the parsed frame
+    auto payload = frame.get_payload_data();
+
+    if (payload.size() != expected_data.size()) {
+        SPDLOG_ERROR("Binary echo size mismatch. Expected: {}, Received: {}", expected_data.size(),
+                payload.size());
+        return false;
+    }
+
+    if (!std::equal(payload.begin(), payload.end(), expected_data.begin())) {
         SPDLOG_ERROR("Binary echo content mismatch");
         return false;
     }

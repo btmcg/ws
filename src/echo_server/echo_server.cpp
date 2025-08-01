@@ -653,26 +653,6 @@ echo_server::on_websocket_data_frame(connection& conn, frame const& frame)
             static_cast<int>(opcode), frame.fin(), frame.payload_len(),
             conn.fragmentation_status());
 
-    // DEBUG: Log frame payload data in detail
-    auto payload = frame.get_payload_data();
-    if (!payload.empty()) {
-        std::string hex_str;
-        std::string char_str;
-        size_t show_bytes = std::min(payload.size(), size_t(30));
-
-        for (size_t i = 0; i < show_bytes; ++i) {
-            hex_str += std::format("{:02x} ", payload[i]);
-            char_str += std::isprint(payload[i]) ? char(payload[i]) : '.';
-        }
-        if (payload.size() > show_bytes) {
-            hex_str += "...";
-            char_str += "...";
-        }
-
-        SPDLOG_ERROR("*** FRAME PAYLOAD ({} bytes): hex=[{}] chars=[{}]", payload.size(), hex_str,
-                char_str);
-    }
-
     if (opcode == OpCode::Continuation) {
         if (!conn.is_fragmented_msg) {
             SPDLOG_ERROR("received continuation frame without prior fragmented message");
@@ -707,48 +687,12 @@ echo_server::on_websocket_data_frame(connection& conn, frame const& frame)
             SPDLOG_DEBUG("starting fragmented {} message", static_cast<int>(opcode));
         }
 
-        // DEBUG: Log accumulated data before adding new fragment
-        if (!conn.fragmented_payload.empty()) {
-            std::string hex_str;
-            std::string char_str;
-            size_t show_bytes = std::min(conn.fragmented_payload.size(), size_t(20));
-
-            for (size_t i = 0; i < show_bytes; ++i) {
-                hex_str += std::format("{:02x} ", conn.fragmented_payload[i]);
-                char_str += std::isprint(conn.fragmented_payload[i])
-                        ? char(conn.fragmented_payload[i])
-                        : '.';
-            }
-
-            SPDLOG_ERROR("*** BEFORE ACCUMULATE: hex=[{}] chars=[{}]", hex_str, char_str);
-        }
-
         // accumulate the payload data
+        auto payload = frame.get_payload_data();
         conn.fragmented_payload.insert(
                 conn.fragmented_payload.end(), payload.begin(), payload.end());
         conn.fragmented_payload_size += frame.payload_len();
         conn.fragments_received++;
-
-        // DEBUG: Log accumulated data after adding new fragment
-        {
-            std::string hex_str;
-            std::string char_str;
-            size_t show_bytes = std::min(conn.fragmented_payload.size(), size_t(30));
-
-            for (size_t i = 0; i < show_bytes; ++i) {
-                hex_str += std::format("{:02x} ", conn.fragmented_payload[i]);
-                char_str += std::isprint(conn.fragmented_payload[i])
-                        ? char(conn.fragmented_payload[i])
-                        : '.';
-            }
-            if (conn.fragmented_payload.size() > show_bytes) {
-                hex_str += "...";
-                char_str += "...";
-            }
-
-            SPDLOG_ERROR("*** AFTER ACCUMULATE #{}: {} bytes total, hex=[{}] chars=[{}]",
-                    conn.fragments_received, conn.fragmented_payload.size(), hex_str, char_str);
-        }
 
         // consume the frame from buffer
         conn.buf.bytes_read(frame.total_size());
@@ -873,7 +817,6 @@ echo_server::disconnect_and_cleanup_client(connection& conn)
     return true;
 }
 
-
 bool
 echo_server::send_echo(
         connection& conn, std::span<std::uint8_t const> payload, OpCode original_frame_type)
@@ -891,7 +834,6 @@ echo_server::send_echo(
         gen.binary(payload);
     }
 
-    SPDLOG_DEBUG("echoing {} bytes as {}", gen.size(), original_frame_type);
     ssize_t nbytes
             = ::send(conn.sockfd, gen.data().data(), static_cast<ssize_t>(gen.size()), /*flags=*/0);
     if (nbytes == -1) {
