@@ -46,7 +46,7 @@ public:
 private:
     std::string ip_;
     int port_ = 0;
-    int sockfd_ = -1; ///< listening socket
+    int sockfd_ = -1;
     byte_buffer<524'288> buf_;
 };
 
