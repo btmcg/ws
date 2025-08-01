@@ -45,10 +45,6 @@ public:
     void mark_read(std::size_t);
 
 private:
-    std::string generate_large_text(std::size_t size);
-    std::vector<std::uint8_t> generate_binary_data(std::size_t size);
-
-private:
     std::string ip_;
     int port_ = 0;
     int sockfd_ = -1; ///< listening socket

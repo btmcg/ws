@@ -14,6 +14,41 @@
 
 namespace ws {
 
+namespace {
+    std::string
+    generate_large_text(std::size_t size)
+    {
+        std::string result;
+        result.reserve(size);
+
+        std::string pattern = "The quick brown fox jumps over the lazy dog. ";
+        while (result.size() < size) {
+            std::size_t remaining = size - result.size();
+            if (remaining >= pattern.size()) {
+                result += pattern;
+            } else {
+                result += pattern.substr(0, remaining);
+            }
+        }
+
+        return result;
+    }
+
+    std::vector<std::uint8_t>
+    generate_binary_data(std::size_t size)
+    {
+        std::vector<std::uint8_t> data;
+        data.reserve(size);
+
+        for (std::size_t i = 0; i < size; ++i) {
+            data.push_back(static_cast<std::uint8_t>(i % 256));
+        }
+
+        return data;
+    }
+
+} // namespace
+
 test_client::test_client(std::string const& ip, int port)
         : ip_(ip)
         , port_(port)
@@ -619,37 +654,6 @@ test_client::expect_binary_echo_response(std::vector<std::uint8_t> const& expect
             }
         }
     }
-}
-std::string
-test_client::generate_large_text(std::size_t size)
-{
-    std::string result;
-    result.reserve(size);
-
-    std::string pattern = "The quick brown fox jumps over the lazy dog. ";
-    while (result.size() < size) {
-        std::size_t remaining = size - result.size();
-        if (remaining >= pattern.size()) {
-            result += pattern;
-        } else {
-            result += pattern.substr(0, remaining);
-        }
-    }
-
-    return result;
-}
-
-std::vector<std::uint8_t>
-test_client::generate_binary_data(std::size_t size)
-{
-    std::vector<std::uint8_t> data;
-    data.reserve(size);
-
-    for (std::size_t i = 0; i < size; ++i) {
-        data.push_back(static_cast<std::uint8_t>(i % 256));
-    }
-
-    return data;
 }
 
 } // namespace ws
