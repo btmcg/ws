@@ -24,6 +24,11 @@ src_ws_files = files(
   'src/ws/frame_generator.cpp',
 )
 
+src_test_client_files = files(
+  'src/test_client/test_client.cpp',
+  'src/test_client/main.cpp',
+)
+
 src_echo_server_files = files(
   'src/echo_server/echo_server.cpp',
   'src/echo_server/main.cpp',
@@ -119,7 +124,13 @@ util_lib = static_library('util',
   include_directories : inc_dir,
   dependencies : [spdlog_dep])
 
-# define the echo server executable
+executable('test_client',
+  sources : src_test_client_files,
+  include_directories : inc_dir,
+  link_with : [util_lib, ws_lib],
+  dependencies : [spdlog_dep],
+  install : true)
+
 executable('echo_server',
   sources : src_echo_server_files,
   include_directories : inc_dir,
