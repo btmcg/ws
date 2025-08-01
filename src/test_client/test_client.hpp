@@ -25,8 +25,10 @@ public:
     bool connect();
 
     bool send_websocket_upgrade_request();
+    bool send_simple_fragmented_message();
 
     std::span<std::uint8_t const> recv();
+    void mark_read(std::size_t);
 
 private:
     std::string ip_;

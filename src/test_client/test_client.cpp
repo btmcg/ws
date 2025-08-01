@@ -73,6 +73,12 @@ test_client::recv()
     return {};
 }
 
+void
+test_client::mark_read(std::size_t nbytes)
+{
+    buf_.bytes_read(nbytes);
+}
+
 bool
 test_client::send_websocket_upgrade_request()
 {
@@ -111,6 +117,38 @@ test_client::send_websocket_upgrade_request()
         return false;
     }
 
+    return true;
+}
+
+bool
+test_client::send_simple_fragmented_message()
+{
+    ssize_t nbytes = -1;
+
+    std::string part1 = "hello";
+    std::string part2 = " world!";
+
+    // first fragment (text frame, FIN=false)
+    auto frame1 = ws::frame_generator{}.text(part1, /*fin=*/false, /*mask=*/true);
+    if (nbytes = ::send(sockfd_, frame1.data().data(), frame1.size(), /*flags=*/0);
+            nbytes != static_cast<ssize_t>(frame1.size())) {
+        SPDLOG_CRITICAL("send: {}", std::strerror(errno));
+        return false;
+    }
+    SPDLOG_DEBUG("send_simple_fragmented_message: sent fragment 1: {} bytes", nbytes);
+
+    // second fragment (continuation frame, FIN=true)
+    auto frame2 = ws::frame_generator{}.continuation(
+            std::span<std::uint8_t const>(
+                    reinterpret_cast<std::uint8_t const*>(part2.data()), part2.size()),
+            /*fin=*/true, /*mask=*/true);
+    if (nbytes = ::send(sockfd_, frame2.data().data(), frame2.size(), /*flags=*/0);
+            nbytes != static_cast<ssize_t>(frame2.size())) {
+        SPDLOG_CRITICAL("send: {}", std::strerror(errno));
+        return false;
+    }
+
+    SPDLOG_INFO("send_simple_fragmented_message: sent fragment 2: {} bytes", nbytes);
     return true;
 }
 

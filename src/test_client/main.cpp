@@ -33,8 +33,21 @@ main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    std::span<std::uint8_t const> buf = client.recv();
-    SPDLOG_INFO("received {} bytes", buf.size());
+    auto response = client.recv();
+    SPDLOG_INFO("upgrade response: {} bytes", response.size());
+    client.mark_read(response.size());
+
+    client.send_simple_fragmented_message();
+
+    auto echo = client.recv();
+    SPDLOG_INFO("received echo: {} bytes", echo.size());
+
+    if (!echo.empty()) {
+        std::string echo_str(reinterpret_cast<char const*>(echo.data()), echo.size());
+        SPDLOG_INFO("echo content: '{}'", echo_str);
+    }
+
+    client.mark_read(echo.size());
 
     return EXIT_SUCCESS;
 }
