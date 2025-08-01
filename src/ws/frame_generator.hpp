@@ -73,6 +73,8 @@ public:
     /// \return The frame data vector
     std::vector<std::uint8_t> take_data() noexcept;
 
+    static std::string generate_websocket_key() noexcept;
+
 private:
     /// Build frame with given parameters
     void build_frame(OpCode opcode, std::span<std::uint8_t const> payload, bool fin, bool mask);

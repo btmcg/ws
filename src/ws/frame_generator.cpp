@@ -1,4 +1,5 @@
 #include "frame_generator.hpp"
+#include "util/base64_codec.hpp"
 #include <bit>     // std::byteswap, std::endian
 #include <cstring> // std::memcpy
 #include <random>  // std::mt19937, std::random_device,
@@ -94,6 +95,23 @@ std::vector<std::uint8_t>
 frame_generator::take_data() noexcept
 {
     return std::move(frame_data_);
+}
+
+// In websocket_frame_generator.cpp
+std::string
+frame_generator::generate_websocket_key() noexcept
+{
+    static thread_local std::random_device rd;
+    static thread_local std::mt19937 gen(rd());
+    static thread_local std::uniform_int_distribution<std::uint8_t> dis(0, 255);
+
+    std::array<std::uint8_t, 16> key_bytes{};
+    for (auto& byte : key_bytes) {
+        byte = dis(gen);
+    }
+
+    std::string_view raw_bytes(reinterpret_cast<const char*>(key_bytes.data()), key_bytes.size());
+    return to_base64(raw_bytes);
 }
 
 void
