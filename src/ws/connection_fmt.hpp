@@ -61,9 +61,7 @@ struct std::formatter<ws::connection>
     auto
     format(ws::connection const& c, std::format_context& ctx) const
     {
-        return std::format_to(ctx.out(),
-                "connection(sockfd={},ip={},port={},conn_state={},bytes_needed={},payload_bytes_read={})",
-                c.sockfd, std::string_view(c.ip), c.port, c.conn_state, c.bytes_needed,
-                c.payload_bytes_read);
+        return std::format_to(ctx.out(), "connection(sockfd={},ip={},port={},conn_state={})",
+                c.sockfd, std::string_view(c.ip), c.port, c.conn_state);
     }
 };

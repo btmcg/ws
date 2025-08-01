@@ -30,8 +30,6 @@ struct connection
     std::uint16_t port = 0;
 
     ConnectionState conn_state = ConnectionState::Undefined;
-    std::uint64_t bytes_needed = 2; // start with basic header
-    std::uint64_t payload_bytes_read = 0;
 
     // fragmentation handling
     OpCode current_frame_type = OpCode::Continuation;
