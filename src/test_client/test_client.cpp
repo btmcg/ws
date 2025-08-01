@@ -448,76 +448,106 @@ test_client::send_ping(std::string const& payload)
 bool
 test_client::expect_echo_response(std::string const& expected_text)
 {
+    SPDLOG_DEBUG("=== EXPECT_ECHO_RESPONSE START ===");
+    SPDLOG_DEBUG("Waiting for echo response: '{}'", expected_text);
+
     // We may receive multiple frames before getting the echo response
     // due to interleaved control frames (pong responses to ping)
     while (true) {
-        auto response = recv();
-        if (response.empty()) {
-            SPDLOG_ERROR("no echo response received");
-            return false;
+        // Check if we already have data in the buffer
+        if (buf_.bytes_unread() == 0) {
+            auto response = recv();
+            if (response.empty()) {
+                SPDLOG_ERROR("no echo response received (connection closed or error)");
+                return false;
+            }
+            SPDLOG_DEBUG("Received {} bytes from server", response.size());
         }
 
-        frame frame;
-        ParseResult result = frame.parse_from_buffer(response.data(), response.size());
+        // Process all complete frames in the buffer
+        while (buf_.bytes_unread() > 0) {
+            SPDLOG_DEBUG("Processing buffer with {} bytes unread", buf_.bytes_unread());
 
-        if (result != ParseResult::Success) {
-            SPDLOG_ERROR("failed to parse frame: result={}", static_cast<int>(result));
-            return false;
-        }
+            frame frame;
+            ParseResult result = frame.parse_from_buffer(buf_.read_ptr(), buf_.bytes_unread());
 
-        switch (frame.op_code()) {
-            case OpCode::Text: {
-                // this is our echo response
-                auto text_payload = frame.get_text_payload();
-                if (!text_payload) {
-                    SPDLOG_ERROR("echo response is not a valid text frame");
-                    return false;
-                }
-
-                std::string received_text = text_payload.value();
-
-                if (received_text != expected_text) {
-                    SPDLOG_ERROR("echo mismatch. expected:\n[{}]\nreceived:\n[{}]", expected_text,
-                            received_text);
-                    return false;
-                }
-
-                SPDLOG_INFO("echo response matches expected text ({} bytes)", expected_text.size());
-                mark_read(response.size());
-                return true;
+            if (result == ParseResult::NeedMoreData) {
+                SPDLOG_DEBUG("Need more data for complete frame, breaking to recv more");
+                break; // Need to receive more data
             }
 
-            case OpCode::Pong: {
-                auto payload = frame.get_payload_data();
-                std::string pong_payload(
-                        reinterpret_cast<const char*>(payload.data()), payload.size());
-                SPDLOG_DEBUG("received pong response with payload: '{}'", pong_payload);
-                mark_read(response.size());
-                // Continue loop to wait for echo response
-                break;
-            }
-
-            case OpCode::Ping: {
-                // unexpected ping from server - we should respond but this is unusual
-                SPDLOG_WARN("received unexpected ping from server during echo test");
-                mark_read(response.size());
-                // continue loop to wait for echo response
-                break;
-            }
-
-            case OpCode::Close: {
-                SPDLOG_ERROR("received close frame instead of echo response");
+            if (result != ParseResult::Success) {
+                SPDLOG_ERROR("failed to parse frame: result={}", static_cast<int>(result));
                 return false;
             }
 
-            case OpCode::Binary:
-            case OpCode::Continuation:
-            default: {
-                SPDLOG_ERROR(
-                        "received unexpected frame type: {}", static_cast<int>(frame.op_code()));
-                return false;
+            SPDLOG_DEBUG("Parsed frame: opcode={}, fin={}, payload_len={}",
+                    static_cast<int>(frame.op_code()), frame.fin(), frame.payload_len());
+
+            switch (frame.op_code()) {
+                case OpCode::Text: {
+                    // this is our echo response
+                    auto text_payload = frame.get_text_payload();
+                    if (!text_payload) {
+                        SPDLOG_ERROR("echo response is not a valid text frame");
+                        buf_.bytes_read(frame.total_size());
+                        return false;
+                    }
+
+                    std::string received_text = text_payload.value();
+                    SPDLOG_DEBUG("Received text frame: '{}'", received_text);
+
+                    if (received_text != expected_text) {
+                        SPDLOG_ERROR("echo mismatch. expected:\n[{}]\nreceived:\n[{}]",
+                                expected_text, received_text);
+                        buf_.bytes_read(frame.total_size());
+                        return false;
+                    }
+
+                    SPDLOG_INFO(
+                            "echo response matches expected text ({} bytes)", expected_text.size());
+                    buf_.bytes_read(frame.total_size());
+                    SPDLOG_DEBUG("=== EXPECT_ECHO_RESPONSE SUCCESS ===");
+                    return true;
+                }
+
+                case OpCode::Pong: {
+                    auto payload = frame.get_payload_data();
+                    std::string pong_payload(
+                            reinterpret_cast<const char*>(payload.data()), payload.size());
+                    SPDLOG_DEBUG("received pong response with payload: '{}'", pong_payload);
+                    buf_.bytes_read(frame.total_size());
+                    // Continue processing more frames in buffer
+                    break;
+                }
+
+                case OpCode::Ping: {
+                    // unexpected ping from server - we should respond but this is unusual
+                    SPDLOG_WARN("received unexpected ping from server during echo test");
+                    buf_.bytes_read(frame.total_size());
+                    // continue processing more frames in buffer
+                    break;
+                }
+
+                case OpCode::Close: {
+                    SPDLOG_ERROR("received close frame instead of echo response");
+                    return false;
+                }
+
+                case OpCode::Binary:
+                case OpCode::Continuation:
+                default: {
+                    SPDLOG_ERROR("received unexpected frame type: {}",
+                            static_cast<int>(frame.op_code()));
+                    buf_.bytes_read(frame.total_size());
+                    return false;
+                }
             }
         }
+
+        // If we get here, we've processed all frames in the buffer but haven't found our echo yet
+        // Continue the outer loop to recv() more data
+        SPDLOG_DEBUG("Processed all frames in buffer, waiting for more data...");
     }
 }
 
