@@ -448,75 +448,151 @@ test_client::send_ping(std::string const& payload)
 bool
 test_client::expect_echo_response(std::string const& expected_text)
 {
-    auto response = recv();
-    if (response.empty()) {
-        SPDLOG_ERROR("no echo response received");
-        return false;
+    // We may receive multiple frames before getting the echo response
+    // due to interleaved control frames (pong responses to ping)
+    while (true) {
+        auto response = recv();
+        if (response.empty()) {
+            SPDLOG_ERROR("no echo response received");
+            return false;
+        }
+
+        frame frame;
+        ParseResult result = frame.parse_from_buffer(response.data(), response.size());
+
+        if (result != ParseResult::Success) {
+            SPDLOG_ERROR("failed to parse frame: result={}", static_cast<int>(result));
+            return false;
+        }
+
+        switch (frame.op_code()) {
+            case OpCode::Text: {
+                // this is our echo response
+                auto text_payload = frame.get_text_payload();
+                if (!text_payload) {
+                    SPDLOG_ERROR("echo response is not a valid text frame");
+                    return false;
+                }
+
+                std::string received_text = text_payload.value();
+
+                if (received_text != expected_text) {
+                    SPDLOG_ERROR("echo mismatch. expected:\n[{}]\nreceived:\n[{}]", expected_text,
+                            received_text);
+                    return false;
+                }
+
+                SPDLOG_INFO("echo response matches expected text ({} bytes)", expected_text.size());
+                mark_read(response.size());
+                return true;
+            }
+
+            case OpCode::Pong: {
+                auto payload = frame.get_payload_data();
+                std::string pong_payload(
+                        reinterpret_cast<const char*>(payload.data()), payload.size());
+                SPDLOG_DEBUG("received pong response with payload: '{}'", pong_payload);
+                mark_read(response.size());
+                // Continue loop to wait for echo response
+                break;
+            }
+
+            case OpCode::Ping: {
+                // unexpected ping from server - we should respond but this is unusual
+                SPDLOG_WARN("received unexpected ping from server during echo test");
+                mark_read(response.size());
+                // continue loop to wait for echo response
+                break;
+            }
+
+            case OpCode::Close: {
+                SPDLOG_ERROR("received close frame instead of echo response");
+                return false;
+            }
+
+            case OpCode::Binary:
+            case OpCode::Continuation:
+            default: {
+                SPDLOG_ERROR(
+                        "received unexpected frame type: {}", static_cast<int>(frame.op_code()));
+                return false;
+            }
+        }
     }
-
-    frame frame;
-    ParseResult result = frame.parse_from_buffer(response.data(), response.size());
-
-    if (result != ParseResult::Success) {
-        SPDLOG_ERROR("failed to parse echo response frame: result={}", static_cast<int>(result));
-        return false;
-    }
-
-    auto text_payload = frame.get_text_payload();
-    if (!text_payload) {
-        SPDLOG_ERROR("echo response is not a valid text frame");
-        return false;
-    }
-
-    std::string received_text = text_payload.value();
-
-    if (received_text != expected_text) {
-        SPDLOG_ERROR(
-                "echo mismatch. expected:\n[{}]\nreceived:\n[{}]", expected_text, received_text);
-        return false;
-    }
-
-    SPDLOG_INFO("echo response matches expected text ({} bytes)", expected_text.size());
-    mark_read(response.size());
-    return true;
 }
 
 bool
 test_client::expect_binary_echo_response(std::vector<std::uint8_t> const& expected_data)
 {
-    auto response = recv();
-    if (response.empty()) {
-        SPDLOG_ERROR("no binary echo response received");
-        return false;
+    while (true) {
+        auto response = recv();
+        if (response.empty()) {
+            SPDLOG_ERROR("no binary echo response received");
+            return false;
+        }
+
+        frame frame;
+        ParseResult result = frame.parse_from_buffer(response.data(), response.size());
+
+        if (result != ParseResult::Success) {
+            SPDLOG_ERROR("failed to parse binary frame: result={}", static_cast<int>(result));
+            return false;
+        }
+
+        switch (frame.op_code()) {
+            case OpCode::Binary: {
+                // this is our echo response
+                auto payload = frame.get_payload_data();
+
+                if (payload.size() != expected_data.size()) {
+                    SPDLOG_ERROR("binary echo size mismatch. expected: {}, received: {}",
+                            expected_data.size(), payload.size());
+                    return false;
+                }
+
+                if (!std::equal(payload.begin(), payload.end(), expected_data.begin())) {
+                    SPDLOG_ERROR("binary echo content mismatch");
+                    return false;
+                }
+
+                SPDLOG_INFO("binary echo response matches expected data ({} bytes)",
+                        expected_data.size());
+                mark_read(response.size());
+                return true;
+            }
+
+            case OpCode::Pong: {
+                auto payload = frame.get_payload_data();
+                std::string pong_payload(
+                        reinterpret_cast<const char*>(payload.data()), payload.size());
+                SPDLOG_DEBUG("received pong response with payload: '{}'", pong_payload);
+                mark_read(response.size());
+                // continue loop to wait for echo response
+                break;
+            }
+
+            case OpCode::Ping: {
+                // unexpected ping from server
+                SPDLOG_WARN("received unexpected ping from server during binary echo test");
+                mark_read(response.size());
+                break;
+            }
+
+            case OpCode::Close: {
+                SPDLOG_ERROR("received close frame instead of binary echo response");
+                return false;
+            }
+
+            case OpCode::Continuation:
+            case OpCode::Text:
+            default: {
+                SPDLOG_ERROR(
+                        "received unexpected frame type: {}", static_cast<int>(frame.op_code()));
+                return false;
+            }
+        }
     }
-
-    frame frame;
-    ParseResult result = frame.parse_from_buffer(response.data(), response.size());
-
-    if (result != ParseResult::Success) {
-        SPDLOG_ERROR(
-                "failed to parse binary echo response frame: result={}", static_cast<int>(result));
-        return false;
-    }
-
-    auto payload = frame.get_payload_data();
-
-    if (payload.size() != expected_data.size()) {
-        SPDLOG_ERROR("binary echo size mismatch. expected: {}, received: {}", expected_data.size(),
-                payload.size());
-        return false;
-    }
-
-    if (!std::equal(payload.begin(), payload.end(), expected_data.begin())) {
-        SPDLOG_ERROR("binary echo content mismatch");
-        return false;
-    }
-
-    SPDLOG_INFO("binary echo response matches expected data ({} bytes)", expected_data.size());
-    mark_read(response.size());
-    return true;
 }
-
 std::string
 test_client::generate_large_text(std::size_t size)
 {
