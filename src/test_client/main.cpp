@@ -74,12 +74,12 @@ main(int argc, char* argv[])
         all_tests_passed = false;
     }
 
-    //     // Test 5: Empty fragments
-    //     SPDLOG_INFO("\n🧪 Running Test 5: Empty Fragments");
-    //     if (!client.send_empty_fragments()) {
-    //         SPDLOG_ERROR("❌ Empty fragments test failed");
-    //         all_tests_passed = false;
-    //     }
+    // test 5: empty fragments
+    SPDLOG_INFO("running test 5: empty fragments");
+    if (!client.send_empty_fragments()) {
+        SPDLOG_ERROR("empty fragments test failed");
+        all_tests_passed = false;
+    }
 
     //     // Test 6: Single-byte fragments
     //     SPDLOG_INFO("\n🧪 Running Test 6: Single-byte Fragments");

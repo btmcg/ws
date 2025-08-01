@@ -305,16 +305,16 @@ test_client::send_mixed_control_and_fragmented_message()
 bool
 test_client::send_empty_fragments()
 {
-    SPDLOG_INFO("=== Testing empty fragments ===");
+    SPDLOG_INFO("=== testing empty fragments ===");
 
-    // First fragment with actual content
-    auto frame1 = frame_generator{}.text("Hello", /*fin=*/false, /*mask=*/true);
+    // first fragment with actual content
+    auto frame1 = frame_generator{}.text("hello", /*fin=*/false, /*mask=*/true);
     if (::send(sockfd_, frame1.data().data(), frame1.size(), 0)
             != static_cast<ssize_t>(frame1.size())) {
         return false;
     }
 
-    // Empty continuation fragment
+    // empty continuation fragment
     auto frame2 = frame_generator{}.continuation(
             std::span<std::uint8_t const>(), /*fin=*/false, /*mask=*/true);
     if (::send(sockfd_, frame2.data().data(), frame2.size(), 0)
@@ -322,8 +322,8 @@ test_client::send_empty_fragments()
         return false;
     }
 
-    // Another fragment with content
-    std::string part3 = " World";
+    // another fragment with content
+    std::string part3 = " world";
     auto frame3 = frame_generator{}.continuation(
             std::span<std::uint8_t const>(
                     reinterpret_cast<std::uint8_t const*>(part3.data()), part3.size()),
@@ -333,7 +333,7 @@ test_client::send_empty_fragments()
         return false;
     }
 
-    // Final empty fragment
+    // final empty fragment
     auto frame4 = frame_generator{}.continuation(
             std::span<std::uint8_t const>(), /*fin=*/true, /*mask=*/true);
     if (::send(sockfd_, frame4.data().data(), frame4.size(), 0)
@@ -341,7 +341,7 @@ test_client::send_empty_fragments()
         return false;
     }
 
-    return expect_echo_response("Hello World");
+    return expect_echo_response("hello world");
 }
 
 bool
