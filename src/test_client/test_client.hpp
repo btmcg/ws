@@ -5,6 +5,7 @@
 #include <span>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace ws {
 
@@ -25,10 +26,27 @@ public:
     bool connect();
 
     bool send_websocket_upgrade_request();
+
     bool send_simple_fragmented_message();
+    bool send_large_fragmented_text_message();
+    bool send_binary_fragmented_message();
+    bool send_many_small_fragments();
+    bool send_mixed_control_and_fragmented_message();
+    bool send_empty_fragments();
+    bool send_single_byte_fragments();
+    bool send_fragmented_message_with_interleaved_ping();
+
+    // helper methods
+    bool send_ping(std::string const& payload = "");
+    bool expect_echo_response(std::string const& expected_text);
+    bool expect_binary_echo_response(std::vector<std::uint8_t> const& expected_data);
 
     std::span<std::uint8_t const> recv();
     void mark_read(std::size_t);
+
+private:
+    std::string generate_large_text(std::size_t size);
+    std::vector<std::uint8_t> generate_binary_data(std::size_t size);
 
 private:
     std::string ip_;
