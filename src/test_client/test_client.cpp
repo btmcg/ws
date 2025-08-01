@@ -456,7 +456,7 @@ test_client::expect_echo_response(std::string const& expected_text)
 
     std::string received_text(reinterpret_cast<char const*>(response.data()), response.size());
     if (received_text != expected_text) {
-        SPDLOG_ERROR("Echo mismatch. Expected: '{}', Received: '{}'", expected_text, received_text);
+        SPDLOG_ERROR("echo mismatch. expected:\n{}\nreceived:\n{}", expected_text, received_text);
         return false;
     }
 
