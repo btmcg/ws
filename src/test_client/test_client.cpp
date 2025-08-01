@@ -251,21 +251,21 @@ test_client::send_binary_fragmented_message()
 bool
 test_client::send_many_small_fragments()
 {
-    SPDLOG_INFO("=== Testing many small fragments ===");
+    SPDLOG_INFO("=== testing many small fragments ===");
 
     std::string complete_message;
     std::string alphabet = "abcdefghijklmnopqrstuvwxyz";
 
-    // First fragment (text frame, FIN=false)
-    auto frame1 = frame_generator{}.text("Start:", /*fin=*/false, /*mask=*/true);
+    // first fragment (text frame, FIN=false)
+    auto frame1 = frame_generator{}.text("start:", /*fin=*/false, /*mask=*/true);
     if (::send(sockfd_, frame1.data().data(), frame1.size(), 0)
             != static_cast<ssize_t>(frame1.size())) {
         return false;
     }
-    complete_message += "Start:";
+    complete_message += "start:";
 
-    // Send 26 small continuation fragments (one for each letter)
-    for (size_t i = 0; i < 25; ++i) {
+    // send 26 small continuation fragments (one for each letter)
+    for (std::size_t i = 0; i < 25; ++i) {
         std::string letter(1, alphabet[i]);
         auto frame = frame_generator{}.continuation(
                 std::span<std::uint8_t const>(
@@ -273,13 +273,13 @@ test_client::send_many_small_fragments()
                 /*fin=*/false, /*mask=*/true);
         if (::send(sockfd_, frame.data().data(), frame.size(), 0)
                 != static_cast<ssize_t>(frame.size())) {
-            SPDLOG_ERROR("Failed to send fragment for letter {}", letter);
+            SPDLOG_ERROR("failed to send fragment for letter {}", letter);
             return false;
         }
         complete_message += letter;
     }
 
-    // Final fragment (continuation frame, FIN=true)
+    // final fragment (continuation frame, FIN=true)
     std::string final_letter(1, alphabet[25]);
     auto final_frame = frame_generator{}.continuation(
             std::span<std::uint8_t const>(
@@ -291,7 +291,7 @@ test_client::send_many_small_fragments()
     }
     complete_message += final_letter;
 
-    SPDLOG_DEBUG("Complete fragmented message: '{}'", complete_message);
+    SPDLOG_DEBUG("complete fragmented message: '{}'", complete_message);
     return expect_echo_response(complete_message);
 }
 

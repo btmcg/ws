@@ -67,12 +67,12 @@ main(int argc, char* argv[])
         all_tests_passed = false;
     }
 
-    //     // Test 4: Many small fragments
-    //     SPDLOG_INFO("\n🧪 Running Test 4: Many Small Fragments");
-    //     if (!client.send_many_small_fragments()) {
-    //         SPDLOG_ERROR("❌ Many small fragments test failed");
-    //         all_tests_passed = false;
-    //     }
+    // test 4: many small fragments
+    SPDLOG_INFO("running test 4: many small fragments");
+    if (!client.send_many_small_fragments()) {
+        SPDLOG_ERROR("many small fragments test failed");
+        all_tests_passed = false;
+    }
 
     //     // Test 5: Empty fragments
     //     SPDLOG_INFO("\n🧪 Running Test 5: Empty Fragments");
