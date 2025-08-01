@@ -148,7 +148,7 @@ test_client::send_simple_fragmented_message()
         return false;
     }
 
-    SPDLOG_INFO("send_simple_fragmented_message: sent fragment 2: {} bytes", nbytes);
+    SPDLOG_DEBUG("send_simple_fragmented_message: sent fragment 2: {} bytes", nbytes);
     return true;
 }
 

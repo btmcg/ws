@@ -35,7 +35,7 @@ struct connection
 {
     int sockfd;
     byte_buffer<BufferSize> buf;
-    frame current_frame;
+    OpCode current_frame_type = OpCode::Continuation;
     char ip[INET_ADDRSTRLEN];
     std::uint16_t port = 0;
 

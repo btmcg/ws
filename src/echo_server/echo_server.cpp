@@ -551,6 +551,7 @@ echo_server::on_websocket_frame(connection& conn)
 
     switch (frame.op_code()) {
         case OpCode::Text: {
+            conn.current_frame_type = OpCode::Text;
             auto payload = frame.get_text_payload();
             if (!payload) {
                 SPDLOG_ERROR("received text frame with bad payload");
@@ -560,6 +561,7 @@ echo_server::on_websocket_frame(connection& conn)
         } break;
 
         case OpCode::Binary: {
+            conn.current_frame_type = OpCode::Binary;
             on_websocket_binary_frame(conn, frame.get_payload_data());
         } break;
 
@@ -585,8 +587,11 @@ echo_server::on_websocket_frame(connection& conn)
             break;
     }
 
-    // consume the frame from the buffer
-    conn.buf.bytes_read(frame.total_size());
+    if (frame.fin()) {
+        send_echo(conn, frame.get_payload_data());
+        // consume the frame from the buffer
+        conn.buf.bytes_read(frame.total_size());
+    }
 
     return true;
 }
@@ -650,13 +655,13 @@ echo_server::on_websocket_text_frame(connection& conn, std::string_view text_dat
 
     auto frame = frame_generator{}.text(text_data);
 
-    SPDLOG_DEBUG("sending {} bytes", frame.size());
-    ssize_t nbytes = ::send(
-            conn.sockfd, frame.data().data(), static_cast<ssize_t>(frame.size()), /*flags=*/0);
-    if (nbytes == -1) {
-        SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
-        return false;
-    }
+    // SPDLOG_DEBUG("sending {} bytes", frame.size());
+    // ssize_t nbytes = ::send(
+    //         conn.sockfd, frame.data().data(), static_cast<ssize_t>(frame.size()), /*flags=*/0);
+    // if (nbytes == -1) {
+    //     SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
+    //     return false;
+    // }
 
     return true;
 }
@@ -671,13 +676,13 @@ echo_server::on_websocket_binary_frame(connection& conn, std::span<std::uint8_t 
 
     auto frame = frame_generator{}.binary(payload);
 
-    SPDLOG_DEBUG("sending {} bytes", frame.size());
-    ssize_t nbytes = ::send(
-            conn.sockfd, frame.data().data(), static_cast<ssize_t>(frame.size()), /*flags=*/0);
-    if (nbytes == -1) {
-        SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
-        return false;
-    }
+    // SPDLOG_DEBUG("sending {} bytes", frame.size());
+    // ssize_t nbytes = ::send(
+    //         conn.sockfd, frame.data().data(), static_cast<ssize_t>(frame.size()), /*flags=*/0);
+    // if (nbytes == -1) {
+    //     SPDLOG_CRITICAL("send: {}: {}", std::strerror(errno), errno);
+    //     return false;
+    // }
 
     return true;
 }

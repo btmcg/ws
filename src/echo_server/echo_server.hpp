@@ -14,7 +14,7 @@ public:
     echo_server(int port);
     ~echo_server() noexcept;
 
-    // No copies/moves
+    // no copies/moves
     echo_server(echo_server const&) = delete;
     echo_server(echo_server&&) = delete;
     echo_server& operator=(echo_server const&) = delete;
