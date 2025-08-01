@@ -4,6 +4,7 @@
 #include "util/byte_buffer.hpp"
 #include <arpa/inet.h> // INET_ADDRSTRLEN
 #include <cstdint>
+#include <format>
 
 
 namespace {
@@ -48,6 +49,7 @@ struct connection
     bool is_fragmented_msg = false;
     std::uint64_t fragmented_payload_size = 0;
     std::vector<std::uint8_t> fragmented_payload;
+    std::size_t fragments_received = 0;
 
     void
     reset_fragmentation()
@@ -56,6 +58,17 @@ struct connection
         is_fragmented_msg = false;
         fragmented_payload_size = 0;
         fragmented_payload.clear();
+        fragments_received = 0;
+    }
+
+    std::string
+    fragmentation_status() const
+    {
+        if (!is_fragmented_msg) {
+            return "not_fragmented";
+        }
+        return std::format("fragmented(type={}, fragments={}, size={})",
+                static_cast<int>(current_frame_type), fragments_received, fragmented_payload_size);
     }
 };
 

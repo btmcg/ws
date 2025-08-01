@@ -528,53 +528,68 @@ echo_server::on_websocket_frame(connection& conn)
 {
     SPDLOG_DEBUG("on_websocket_frame: bytes_unread={}", conn.buf.bytes_unread());
 
-    ws::frame frame;
-    ParseResult result = frame.parse_from_buffer(conn.buf.read_ptr(), conn.buf.bytes_unread());
+    // process all complete frames in the buffer
+    while (conn.buf.bytes_unread() > 0) {
+        frame frame;
+        ParseResult result = frame.parse_from_buffer(conn.buf.read_ptr(), conn.buf.bytes_unread());
 
-    switch (result) {
-        case ParseResult::NeedMoreData:
-            SPDLOG_DEBUG("need more data for complete frame");
-            return true; // wait for more data
+        switch (result) {
+            case ParseResult::NeedMoreData:
+                SPDLOG_DEBUG("need more data for complete frame");
+                return true; // wait for more data
 
-        case ParseResult::InvalidFrame:
-            SPDLOG_ERROR("invalid WebSocket frame received");
-            disconnect_and_cleanup_client(conn);
-            return false; // invalid frame - close connection
+            case ParseResult::InvalidFrame:
+                SPDLOG_ERROR("invalid WebSocket frame received");
+                disconnect_and_cleanup_client(conn);
+                return false; // invalid frame - close connection
 
-        case ParseResult::Success:
-        default:
-            break;
-    }
+            case ParseResult::Success:
+            default:
+                break;
+        }
 
-    SPDLOG_DEBUG("parsed frame: fin={}, op_code={}, masked={}, payload_len={}, header_size={}",
-            frame.fin(), frame.op_code(), frame.masked(), frame.payload_len(), frame.header_size());
+        SPDLOG_DEBUG("parsed frame: fin={}, op_code={}, masked={}, payload_len={}, header_size={}",
+                frame.fin(), frame.op_code(), frame.masked(), frame.payload_len(),
+                frame.header_size());
 
-    switch (frame.op_code()) {
-        case OpCode::Close: {
-            on_websocket_close(conn);
-            conn.buf.bytes_read(frame.total_size());
-        } break;
+        bool frame_handled = false;
 
-        case OpCode::Ping: {
-            on_websocket_ping(conn, frame.get_payload_data());
-            conn.buf.bytes_read(frame.total_size());
-        } break;
+        switch (frame.op_code()) {
+            case OpCode::Close: {
+                on_websocket_close(conn);
+                conn.buf.bytes_read(frame.total_size());
+                frame_handled = true;
+            } break;
 
-        case OpCode::Pong: {
-            on_websocket_pong(conn, frame.get_payload_data());
-            conn.buf.bytes_read(frame.total_size());
-        } break;
+            case OpCode::Ping: {
+                on_websocket_ping(conn, frame.get_payload_data());
+                conn.buf.bytes_read(frame.total_size());
+                frame_handled = true;
+            } break;
 
-        case OpCode::Text:
-        case OpCode::Binary:
-        case OpCode::Continuation:
-            return on_websocket_data_frame(conn, frame);
+            case OpCode::Pong: {
+                on_websocket_pong(conn, frame.get_payload_data());
+                conn.buf.bytes_read(frame.total_size());
+                frame_handled = true;
+            } break;
 
-        default:
-            SPDLOG_WARN("received frame with unsupported opcode: {}",
-                    static_cast<int>(frame.op_code()));
-            conn.buf.bytes_read(frame.total_size());
-            break;
+            case OpCode::Text:
+            case OpCode::Binary:
+            case OpCode::Continuation:
+                frame_handled = on_websocket_data_frame(conn, frame);
+                break;
+
+            default:
+                SPDLOG_WARN("received frame with unsupported opcode: {}",
+                        static_cast<int>(frame.op_code()));
+                conn.buf.bytes_read(frame.total_size());
+                frame_handled = true;
+                break;
+        }
+
+        if (!frame_handled) {
+            return false;
+        }
     }
     return true;
 }
@@ -633,6 +648,11 @@ echo_server::on_websocket_data_frame(connection& conn, frame const& frame)
 {
     OpCode opcode = frame.op_code();
 
+    SPDLOG_DEBUG(
+            "processing data frame: opcode={}, fin={}, payload_len={}, fragmentation_status={}",
+            static_cast<int>(opcode), frame.fin(), frame.payload_len(),
+            conn.fragmentation_status());
+
     if (opcode == OpCode::Continuation) {
         if (!conn.is_fragmented_msg) {
             SPDLOG_ERROR("received continuation frame without prior fragmented message");
@@ -663,19 +683,21 @@ echo_server::on_websocket_data_frame(connection& conn, frame const& frame)
             conn.is_fragmented_msg = true;
             conn.fragmented_payload_size = 0;
             conn.fragmented_payload.clear();
+            conn.fragments_received = 0;
             SPDLOG_DEBUG("starting fragmented {} message", static_cast<int>(opcode));
         }
 
-        // store the payload data and consume the entire frame
+        // accumulate the payload data
         auto payload = frame.get_payload_data();
         conn.fragmented_payload.insert(
                 conn.fragmented_payload.end(), payload.begin(), payload.end());
         conn.fragmented_payload_size += frame.payload_len();
 
+        // consume the frame from buffer
         conn.buf.bytes_read(frame.total_size());
 
-        SPDLOG_DEBUG("accumulated fragment: {} bytes this frame, {} bytes total",
-                frame.payload_len(), conn.fragmented_payload_size);
+        SPDLOG_DEBUG("accumulated fragment #{}: {} bytes this frame, {} bytes total",
+                conn.fragments_received, frame.payload_len(), conn.fragmented_payload_size);
 
         return true;
     }
@@ -689,6 +711,7 @@ echo_server::process_single_frame_message(connection& conn, frame const& frame)
         auto payload = frame.get_text_payload();
         if (!payload) {
             SPDLOG_ERROR("received text frame with bad payload");
+            disconnect_and_cleanup_client(conn);
             return false;
         }
         on_websocket_text_frame(conn, payload.value());
@@ -696,10 +719,10 @@ echo_server::process_single_frame_message(connection& conn, frame const& frame)
         on_websocket_binary_frame(conn, frame.get_payload_data());
     }
 
-    send_echo(conn, frame.get_payload_data(), frame.op_code());
+    bool echo_sent = send_echo(conn, frame.get_payload_data(), frame.op_code());
     conn.buf.bytes_read(frame.total_size());
 
-    return true;
+    return echo_sent;
 }
 
 bool
@@ -724,14 +747,14 @@ echo_server::process_complete_fragmented_message(connection& conn, frame const& 
 
     // send echo response
     std::span<const std::uint8_t> echo_data(conn.fragmented_payload);
-    send_echo(conn, echo_data, conn.current_frame_type);
+    bool echo_sent = send_echo(conn, echo_data, conn.current_frame_type);
 
     // consume the final frame
     conn.buf.bytes_read(final_frame.total_size());
 
     conn.reset_fragmentation();
 
-    return true;
+    return echo_sent;
 }
 
 bool
