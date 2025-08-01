@@ -24,6 +24,8 @@ public:
     /// \return \c false on error
     bool connect();
 
+    bool send_websocket_upgrade_request();
+
     std::span<std::uint8_t> recv();
 
 private:

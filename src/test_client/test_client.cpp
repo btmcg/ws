@@ -2,9 +2,10 @@
 #include "ws/frame_generator.hpp"
 #include <netdb.h> // ::getaddrinfo
 #include <spdlog/spdlog.h>
-#include <sys/socket.h> // ::connect, ::send, ::setsockopt, ::socket
+#include <sys/socket.h> // ::connect, ::getsockname, ::send, ::setsockopt, ::socket
 #include <sys/types.h>
 #include <unistd.h> // ::gethostname
+#include <bit>      // std::byteswap
 #include <cstdlib>  // EXIT_FAILURE, EXIT_SUCCESS
 #include <cstring>  // std::memset, std::strerror
 
@@ -69,6 +70,47 @@ test_client::recv()
     }
 
     return {};
+}
+
+bool
+test_client::send_websocket_upgrade_request()
+{
+    SPDLOG_DEBUG("sending websocket upgrade request");
+
+    char hostname[HOST_NAME_MAX]; // Buffer to store the hostname
+    if (int rv = ::gethostname(hostname, HOST_NAME_MAX); rv != 0) {
+        SPDLOG_CRITICAL("gethostname: {}", std::strerror(errno));
+        return false;
+    }
+
+    sockaddr_in sa;
+    socklen_t socklen = static_cast<socklen_t>(sizeof(sa));
+    if (int rv = ::getsockname(sockfd_, reinterpret_cast<sockaddr*>(&sa), &socklen); rv == -1) {
+        SPDLOG_CRITICAL("recv: {}", std::strerror(errno));
+        return false;
+    }
+
+    int const local_port = std::byteswap(sa.sin_port);
+
+    ws::frame_generator frame_gen;
+
+    std::string const websocket_key = frame_gen.generate_websocket_key();
+    std::string const request = std::format("GET / HTTP/1.1\r\n"
+                                            "Host: {}:{}\r\n"
+                                            "Upgrade: websocket\r\n"
+                                            "Connection: Upgrade\r\n"
+                                            "Sec-WebSocket-Key: {}\r\n"
+                                            "Sec-WebSocket-Version: 13\r\n"
+                                            "\r\n",
+            hostname, local_port, websocket_key);
+
+    if (ssize_t nbytes = ::send(sockfd_, request.data(), request.size(), /*flags=*/0);
+            nbytes != static_cast<ssize_t>(request.size())) {
+        SPDLOG_CRITICAL("send: {}", std::strerror(errno));
+        return false;
+    }
+
+    return true;
 }
 
 } // namespace ws

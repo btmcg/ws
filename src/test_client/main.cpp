@@ -27,24 +27,11 @@ main(int argc, char* argv[])
 
     SPDLOG_INFO("client connected");
 
-    // ws::frame_generator f_gen;
-
-    // std::string const websocket_key = f_gen::generate_websocket_key();
-    // std::string const request = std::format("GET / HTTP/1.1\r\n"
-    //                                         "Host: {}:{}\r\n"
-    //                                         "Upgrade: websocket\r\n"
-    //                                         "Connection: Upgrade\r\n"
-    //                                         "Sec-WebSocket-Key: {}\r\n"
-    //                                         "Sec-WebSocket-Version: 13\r\n"
-    //                                         "\r\n",
-    //         hostname, port, websocket_key);
-
-
-    // if (ssize_t nbytes = ::send(sockfd, request.data(), request.size(), /*flags=*/0);
-    //         nbytes != request.size()) {
-    //     SPDLOG_CRITICAL("send: {}", std::strerror(errno));
-    //     return EXIT_FAILURE;
-    // }
+    SPDLOG_INFO("client connected");
+    if (!client.send_websocket_upgrade_request()) {
+        SPDLOG_CRITICAL("failed to send websocket upgrade request");
+        return EXIT_FAILURE;
+    }
 
     std::span<std::uint8_t> buf = client.recv();
     SPDLOG_INFO("received {} bytes", buf.size());
