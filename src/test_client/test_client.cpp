@@ -331,13 +331,6 @@ test_client::send_many_small_fragments()
 }
 
 bool
-test_client::send_mixed_control_and_fragmented_message()
-{
-    // This is the same as send_fragmented_message_with_interleaved_ping
-    return send_fragmented_message_with_interleaved_ping();
-}
-
-bool
 test_client::send_empty_fragments()
 {
     SPDLOG_INFO("=== testing empty fragments ===");

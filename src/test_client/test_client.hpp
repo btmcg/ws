@@ -31,7 +31,6 @@ public:
     bool send_large_fragmented_text_message();
     bool send_binary_fragmented_message();
     bool send_many_small_fragments();
-    bool send_mixed_control_and_fragmented_message();
     bool send_empty_fragments();
     bool send_single_byte_fragments();
     bool send_fragmented_message_with_interleaved_ping();
