@@ -26,7 +26,7 @@ public:
 
     bool send_websocket_upgrade_request();
 
-    std::span<std::uint8_t> recv();
+    std::span<std::uint8_t const> recv();
 
 private:
     std::string ip_;

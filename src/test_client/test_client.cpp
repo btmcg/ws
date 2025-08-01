@@ -56,14 +56,15 @@ test_client::connect()
     return true;
 }
 
-std::span<std::uint8_t>
+std::span<std::uint8_t const>
 test_client::recv()
 {
     ::ssize_t nbytes = ::recv(sockfd_, buf_.write_ptr(), buf_.bytes_left(), /*flags=*/0);
     if (nbytes > 0) {
-        return std::span(buf_.write_ptr(), buf_.bytes_unread());
+        buf_.bytes_written(nbytes);
+        return std::span(buf_.read_ptr(), buf_.bytes_unread());
     } else if (nbytes == 0) {
-        return {};
+        return {}; // Connection closed
     } else {
         SPDLOG_CRITICAL("recv: {}", std::strerror(errno));
         std::abort();

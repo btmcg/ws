@@ -33,7 +33,7 @@ main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    std::span<std::uint8_t> buf = client.recv();
+    std::span<std::uint8_t const> buf = client.recv();
     SPDLOG_INFO("received {} bytes", buf.size());
 
     return EXIT_SUCCESS;
