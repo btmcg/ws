@@ -7,6 +7,11 @@
 
 namespace ws {
 
+/*! \class  frame_generator
+ *  \brief  This is a generator that can be used to parse data into a
+ *          websocket frame or to generate a frame in preparation to
+ *          send.
+ */
 class frame_generator
 {
 private:

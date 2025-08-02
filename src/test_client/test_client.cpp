@@ -46,7 +46,6 @@ namespace {
 
         return data;
     }
-
 } // namespace
 
 test_client::test_client(std::string const& ip, int port)
